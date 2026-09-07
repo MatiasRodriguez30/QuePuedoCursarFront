@@ -1,4 +1,4 @@
-import { BookOpen, Check, Compass, GraduationCap, Lightbulb, Route, Terminal } from 'lucide-react'
+import { BookOpen, Check, Compass, GraduationCap, Lightbulb, LogOut, Route, Shield, Terminal } from 'lucide-react'
 import { API_BASE } from '../lib/api'
 
 const TABS = [
@@ -9,7 +9,7 @@ const TABS = [
   { id: 'ruta', label: 'Camino Óptimo', icon: Route },
 ]
 
-export default function Header({ currentTab, onTabChange, wsStatus, badgeDisponibles, badgeRecomendaciones }) {
+export default function Header({ currentTab, onTabChange, wsStatus, badgeDisponibles, badgeRecomendaciones, usuario, onLogout }) {
   const wsCfg = {
     connected: { dot: 'bg-emerald-400', text: 'Sincronizado', badge: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' },
     connecting: { dot: 'bg-amber-400 animate-pulse', text: 'Conectando...', badge: 'border-slate-800 bg-slate-900/60 text-slate-400' },
@@ -51,6 +51,21 @@ export default function Header({ currentTab, onTabChange, wsStatus, badgeDisponi
             <Terminal className="w-3.5 h-3.5 text-slate-400" />
             <span>API Docs</span>
           </a>
+          {usuario && (
+            <div className="flex items-center gap-2 pl-1">
+              <span className="hidden sm:flex items-center gap-1.5 text-xs text-slate-300 max-w-[160px] truncate" title={usuario.email}>
+                {usuario.rol === 'ADMIN' && <Shield className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" title="Admin" />}
+                {usuario.email}
+              </span>
+              <button
+                onClick={onLogout}
+                title="Cerrar sesión"
+                className="p-1.5 text-slate-400 hover:text-rose-300 rounded-lg hover:bg-rose-500/10 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

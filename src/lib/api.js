@@ -1,16 +1,14 @@
 // ─────────────────────────────────────────────────────────────────────────
-// Resolución de la URL del backend + wrapper de fetch.
+// Resolución de la URL del backend + wrapper de fetch + sesión (token).
 //
-// Prioridad: query param ?api=... (se guarda en localStorage) > localStorage
-// > variable de entorno VITE_API_URL (build time) > default hardcodeado.
-//
-// Esto existe porque el backend corre en una tablet detrás de un Cloudflare
-// Tunnel: si alguna vez cambia la URL, no hace falta redeployar el frontend,
-// alcanza con abrir la app con ?api=https://nueva-url una vez.
+// Prioridad para la URL del backend: query param ?api=... (se guarda en
+// localStorage) > localStorage > variable de entorno VITE_API_URL (build
+// time) > default hardcodeado.
 // ─────────────────────────────────────────────────────────────────────────
 
 const DEFAULT_API_BASE = import.meta.env.VITE_API_URL || 'https://quepuedocursar.takana.online'
 const STORAGE_KEY = 'qpc_api_base'
+const TOKEN_KEY = 'qpc_token'
 
 function resolveApiBase() {
   try {
@@ -38,11 +36,34 @@ export function setApiBase(url) {
   window.location.reload()
 }
 
+// ── Sesión ───────────────────────────────────────────────────────────────
+export function getToken() {
+  try { return localStorage.getItem(TOKEN_KEY) } catch (_) { return null }
+}
+
+export function setToken(token) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token)
+    else localStorage.removeItem(TOKEN_KEY)
+  } catch (_) { /* noop */ }
+}
+
+// Se dispara cuando cualquier request recibe 401 (token inválido/vencido),
+// para que la app pueda volver a la pantalla de login.
+let onUnauthorized = null
+export function setUnauthorizedHandler(fn) { onUnauthorized = fn }
+
 export async function apiRequest(endpoint, options = {}) {
   const defaultHeaders = { 'Content-Type': 'application/json' }
+  const token = getToken()
+  if (token) defaultHeaders['Authorization'] = `Bearer ${token}`
   options.headers = { ...defaultHeaders, ...options.headers }
 
   const res = await fetch(`${API_BASE}${endpoint}`, options)
+  if (res.status === 401) {
+    setToken(null)
+    onUnauthorized?.()
+  }
   if (!res.ok) {
     let errDetail = res.statusText
     try {

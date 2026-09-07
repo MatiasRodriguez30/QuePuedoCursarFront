@@ -4,6 +4,8 @@ import Header from './components/Header'
 import HeroMetrics from './components/HeroMetrics'
 import ToastContainer from './components/ToastContainer'
 import ConfirmDialog from './components/ConfirmDialog'
+import LoginScreen from './components/LoginScreen'
+import ResetPasswordScreen from './components/ResetPasswordScreen'
 import ConsultasTab from './tabs/ConsultasTab'
 import EstadosTab from './tabs/EstadosTab'
 import PlanTab from './tabs/PlanTab'
@@ -12,13 +14,16 @@ import RutaTab from './tabs/RutaTab'
 import { useAppData } from './lib/useAppData'
 import { useToasts } from './lib/useToasts'
 import { useConfirm } from './lib/useConfirm'
+import { useAuth } from './lib/useAuth'
 import { checkCursadaRequirements, checkExcepcionMachete, computeCondicionalidadCandidatos } from './lib/businessLogic'
 
 export default function App() {
+  const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get('reset'))
   const [currentTab, setCurrentTab] = useState('consultas')
   const { toasts, showToast, dismiss } = useToasts()
   const { confirmState, showConfirm, resolveConfirm } = useConfirm()
-  const { ctx, loading, wsStatus, setConfigApp } = useAppData(showToast)
+  const { usuario, checking, login, registrar, logout, esAdmin } = useAuth()
+  const { ctx, loading, wsStatus, setConfigApp } = useAppData(showToast, usuario?.id)
 
   const badgeDisponibles = useMemo(() => {
     return ctx.materias.filter(m => {
@@ -32,6 +37,30 @@ export default function App() {
     const candidatos = computeCondicionalidadCandidatos(ctx)
     return candidatos.length + (machete.elegible ? 1 : 0)
   }, [ctx])
+
+  if (resetToken) {
+    return (
+      <ResetPasswordScreen
+        token={resetToken}
+        onDone={() => {
+          window.history.replaceState({}, '', window.location.pathname)
+          setResetToken(null)
+        }}
+      />
+    )
+  }
+
+  if (checking) {
+    return (
+      <div className="min-h-full flex items-center justify-center bg-slate-950">
+        <GraduationCap className="w-8 h-8 text-brand-400 animate-pulse" />
+      </div>
+    )
+  }
+
+  if (!usuario) {
+    return <LoginScreen onLogin={login} onRegister={registrar} />
+  }
 
   return (
     <div className="min-h-full flex flex-col bg-slate-950 font-sans">
@@ -59,6 +88,8 @@ export default function App() {
         wsStatus={wsStatus}
         badgeDisponibles={badgeDisponibles}
         badgeRecomendaciones={badgeRecomendaciones}
+        usuario={usuario}
+        onLogout={logout}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -66,9 +97,9 @@ export default function App() {
 
         {currentTab === 'consultas' && <ConsultasTab ctx={ctx} />}
         {currentTab === 'estados' && <EstadosTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} />}
-        {currentTab === 'plan' && <PlanTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} />}
+        {currentTab === 'plan' && <PlanTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} esAdmin={esAdmin} />}
         {currentTab === 'recomendaciones' && <RecomendacionesTab ctx={ctx} />}
-        {currentTab === 'ruta' && <RutaTab ctx={ctx} showToast={showToast} setConfigApp={setConfigApp} />}
+        {currentTab === 'ruta' && <RutaTab ctx={ctx} showToast={showToast} setConfigApp={setConfigApp} esAdmin={esAdmin} />}
       </main>
 
       <ToastContainer toasts={toasts} onDismiss={dismiss} />

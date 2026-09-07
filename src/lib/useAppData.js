@@ -5,13 +5,16 @@ import { buildPrereqsMap, formatEstadoText } from './businessLogic'
 // Hook central: trae todo (materias, estados, prerequisitos, config), abre el
 // WebSocket y mantiene el estado sincronizado en tiempo real. Devuelve tanto
 // los datos como los setters/acciones que los componentes necesitan.
-export function useAppData(showToast) {
+// `usuarioId` gatilla la carga: sin sesión (null) no pide nada todavía.
+export function useAppData(showToast, usuarioId) {
   const [materias, setMaterias] = useState([])
   const [estadosMap, setEstadosMap] = useState({})
   const [prerequisitos, setPrerequisitos] = useState([])
   const [configApp, setConfigApp] = useState({ anio_actual: null, cuatrimestre_actual: null })
   const [wsStatus, setWsStatus] = useState('connecting') // connecting | connected | disconnected
   const [loading, setLoading] = useState(true)
+  const usuarioIdRef = useRef(usuarioId)
+  usuarioIdRef.current = usuarioId
 
   const wsRef = useRef(null)
   const pingIntervalRef = useRef(null)
@@ -27,6 +30,7 @@ export function useAppData(showToast) {
   }, [])
 
   const fetchAll = useCallback(async () => {
+    if (!usuarioIdRef.current) { setLoading(false); return }
     try {
       const [mats, ests, prereqs, cfg] = await Promise.all([
         apiRequest('/materias'),
@@ -49,10 +53,11 @@ export function useAppData(showToast) {
 
   useEffect(() => {
     fetchAll()
-  }, [fetchAll])
+  }, [fetchAll, usuarioId])
 
   // ── WebSocket ────────────────────────────────────────────────────────
   useEffect(() => {
+    if (!usuarioId) { setWsStatus('disconnected'); return }
     let cancelled = false
     let reconnectTimer = null
 
@@ -124,13 +129,18 @@ export function useAppData(showToast) {
           break
 
         case 'estado_actualizado':
+          // Sólo aplica si es el progreso del usuario logueado en ESTE navegador
+          // (otros usuarios conectados reciben el mismo evento por otras
+          // materias/personas, y deben ignorarlo).
+          if (data.usuario_id !== usuarioIdRef.current) break
           setEstadosMap(prev => ({ ...prev, [data.materia_id]: data.estado }))
           showToastRef.current?.('success', 'Estado Actualizado', `${data.materia?.nombre || 'Materia'} → ${formatEstadoText(data.estado)}`)
           break
 
         case 'estados_reseteados': {
+          if (data.usuario_id !== usuarioIdRef.current) break
           const eMap = {}
-          ;(data || []).forEach(e => { eMap[e.materia_id] = e.estado })
+          ;(data.estados || []).forEach(e => { eMap[e.materia_id] = e.estado })
           setEstadosMap(eMap)
           showToastRef.current?.('warning', 'Avance Reiniciado', 'Todas las materias volvieron a No Cursada')
           break
@@ -153,7 +163,7 @@ export function useAppData(showToast) {
       clearInterval(pingIntervalRef.current)
       wsRef.current?.close()
     }
-  }, [reloadPrereqs])
+  }, [reloadPrereqs, usuarioId])
 
   return { ctx, loading, wsStatus, setEstadosMap, setConfigApp, refetch: fetchAll }
 }

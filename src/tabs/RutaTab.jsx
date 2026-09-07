@@ -3,7 +3,7 @@ import { Calendar, Map, Route, Sparkles, Unlock } from 'lucide-react'
 import { apiRequest } from '../lib/api'
 import { computePrediccionCursando, computeRutaSugerida, getPeriodoActual } from '../lib/businessLogic'
 
-export default function RutaTab({ ctx, showToast, setConfigApp }) {
+export default function RutaTab({ ctx, showToast, setConfigApp, esAdmin }) {
   const [anioInput, setAnioInput] = useState(ctx.configApp.anio_actual || '')
   const [cuatSel, setCuatSel] = useState(ctx.configApp.cuatrimestre_actual || null)
 
@@ -62,27 +62,31 @@ export default function RutaTab({ ctx, showToast, setConfigApp }) {
           Tu Momento Actual
         </h3>
         <p className="text-xs text-slate-400 mb-3">Definilo para que la ruta sugerida y las "próximas oportunidades" sean exactas. Si lo dejás vacío, el sistema estima el cuatrimestre con la fecha de tu dispositivo.</p>
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Año calendario</label>
-            <input type="number" value={anioInput} onChange={e => setAnioInput(e.target.value)} placeholder="Ej: 2026"
-              className="w-28 bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500" />
-          </div>
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Cuatrimestre</label>
-            <div className="flex gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
-              {[1, 2].map(n => (
-                <button key={n} type="button" onClick={() => setCuatSel(n)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${cuatSel === n ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
-                  {n}°
-                </button>
-              ))}
+        {esAdmin ? (
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-400 mb-1">Año calendario</label>
+              <input type="number" value={anioInput} onChange={e => setAnioInput(e.target.value)} placeholder="Ej: 2026"
+                className="w-28 bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500" />
             </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-400 mb-1">Cuatrimestre</label>
+              <div className="flex gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+                {[1, 2].map(n => (
+                  <button key={n} type="button" onClick={() => setCuatSel(n)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${cuatSel === n ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
+                    {n}°
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button onClick={guardarPeriodo} className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-brand-500/25 transition-all">Guardar</button>
+            <button onClick={limpiarPeriodo} className="px-3 py-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors">Usar fecha automática</button>
+            <span className="text-xs text-slate-400 ml-auto">{periodoTexto}</span>
           </div>
-          <button onClick={guardarPeriodo} className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-brand-500/25 transition-all">Guardar</button>
-          <button onClick={limpiarPeriodo} className="px-3 py-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors">Usar fecha automática</button>
-          <span className="text-xs text-slate-400 ml-auto">{periodoTexto}</span>
-        </div>
+        ) : (
+          <p className="text-xs text-slate-300">{periodoTexto} <span className="text-slate-500">(sólo el admin puede cambiarlo)</span></p>
+        )}
       </div>
 
       <div>

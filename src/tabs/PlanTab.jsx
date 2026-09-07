@@ -4,7 +4,7 @@ import { apiRequest } from '../lib/api'
 import MateriaModal from '../components/MateriaModal'
 import PrereqsModal from '../components/PrereqsModal'
 
-export default function PlanTab({ ctx, showToast, showConfirm }) {
+export default function PlanTab({ ctx, showToast, showConfirm, esAdmin }) {
   const [query, setQuery] = useState('')
   const [editingMateria, setEditingMateria] = useState(undefined) // undefined = cerrado, null = nueva, obj = editar
   const [prereqsMateria, setPrereqsMateria] = useState(null)
@@ -54,10 +54,12 @@ export default function PlanTab({ ctx, showToast, showConfirm }) {
               className="w-full bg-slate-900/80 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
             />
           </div>
-          <button onClick={() => setEditingMateria(null)} className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-brand-500/25 transition-all">
-            <Plus className="w-4 h-4" />
-            <span>Nueva Materia</span>
-          </button>
+          {esAdmin && (
+            <button onClick={() => setEditingMateria(null)} className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-brand-500/25 transition-all">
+              <Plus className="w-4 h-4" />
+              <span>Nueva Materia</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -113,20 +115,22 @@ export default function PlanTab({ ctx, showToast, showConfirm }) {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
-                          <button onClick={() => setPrereqsMateria(m)} className="text-xs font-semibold text-brand-400 hover:text-brand-300 flex items-center gap-1 py-1 px-2 rounded-lg hover:bg-brand-500/10 transition-colors">
-                            <GitFork className="w-3.5 h-3.5" />
-                            <span>Requisitos</span>
-                          </button>
-                          <div className="flex items-center gap-1">
-                            <button onClick={() => setEditingMateria(m)} title="Editar Asignatura" className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors">
-                              <Edit3 className="w-3.5 h-3.5" />
+                        {esAdmin && (
+                          <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
+                            <button onClick={() => setPrereqsMateria(m)} className="text-xs font-semibold text-brand-400 hover:text-brand-300 flex items-center gap-1 py-1 px-2 rounded-lg hover:bg-brand-500/10 transition-colors">
+                              <GitFork className="w-3.5 h-3.5" />
+                              <span>Requisitos</span>
                             </button>
-                            <button onClick={() => handleDelete(m)} title="Eliminar Asignatura" className="p-1.5 text-rose-400 hover:text-rose-300 rounded-lg hover:bg-rose-500/10 transition-colors">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => setEditingMateria(m)} title="Editar Asignatura" className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors">
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => handleDelete(m)} title="Eliminar Asignatura" className="p-1.5 text-rose-400 hover:text-rose-300 rounded-lg hover:bg-rose-500/10 transition-colors">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     )
                   })}
