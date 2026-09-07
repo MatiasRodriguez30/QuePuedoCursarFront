@@ -57,6 +57,28 @@ export function checkCursadaRequirements(materiaId, ctx, estados = ctx.estadosMa
   }
 }
 
+// Las electivas concretas cargadas son sólo EJEMPLOS de un pool: el plan no
+// exige cursar todas, exige acumular cierta cantidad de horas semanales de
+// electivas por nivel (ver REQUISITOS_ELECTIVAS). Por eso se excluyen de los
+// cálculos de "camino obligatorio" / cascada — no son un cuello de botella
+// real, son una casilla aparte a completar con lo que se ofrezca cada año.
+export const esElectiva = (materia) => materia.codigo.startsWith('E-')
+
+// Horas semanales de electivas exigidas por nivel (según el plan de estudios).
+export const REQUISITOS_ELECTIVAS = { 3: 4, 4: 6, 5: 10 }
+
+export function computeCreditosElectivas(ctx) {
+  return Object.entries(REQUISITOS_ELECTIVAS).map(([nivel, requeridas]) => {
+    const n = Number(nivel)
+    const logradas = ctx.materias
+      .filter(m => esElectiva(m) && m.anio === n)
+      .filter(m => (ctx.estadosMap[m.id] || 'NO_CURSADA') === 'PROMOCIONADA')
+      .reduce((sum, m) => sum + (m.horas_semanales || 0), 0)
+    const disponibles = ctx.materias.filter(m => esElectiva(m) && m.anio === n)
+    return { nivel: n, requeridas, logradas, cumplido: logradas >= requeridas, disponibles }
+  })
+}
+
 // Cuántas materias (aún no aprobadas) tienen a `materiaId` como requisito directo.
 export function computeImpacto(materiaId, ctx) {
   return ctx.prerequisitos.filter(p => {
@@ -84,7 +106,7 @@ export function computeImpactoCascada(materiaId, ctx) {
       cola.push(dependienteId)
     })
   }
-  const materiasBloqueadas = [...visitados].map(id => ctx.materias.find(m => m.id === id)).filter(Boolean)
+  const materiasBloqueadas = [...visitados].map(id => ctx.materias.find(m => m.id === id)).filter(Boolean).filter(m => !esElectiva(m))
   const horas = materiasBloqueadas.reduce((sum, m) => sum + (m.horas_semanales || 0), 0)
   return { cantidad: materiasBloqueadas.length, horas, materias: materiasBloqueadas }
 }
@@ -201,6 +223,7 @@ export function computePrediccionCursando(ctx) {
   const acercadas = []
 
   ctx.materias.forEach(m => {
+    if (esElectiva(m)) return // no son un objetivo obligatorio, no interesa "acercarse" a ellas
     const estadoActual = ctx.estadosMap[m.id] || 'NO_CURSADA'
     if (estadoActual !== 'NO_CURSADA') return
     const antes = checkCursadaRequirements(m.id, ctx, ctx.estadosMap)
@@ -240,12 +263,14 @@ export function computeCaminoCompleto(ctx, maxPasos = 16) {
   let periodo = getPeriodoActual(ctx.configApp)
   const pasos = []
 
-  const totalPendientesInicial = ctx.materias.filter(m => (ctx.estadosMap[m.id] || 'NO_CURSADA') === 'NO_CURSADA').length
+  // Las electivas no forman parte del camino obligatorio (ver esElectiva):
+  // el plan pide un total de horas por nivel, no materias puntuales.
+  const totalPendientesInicial = ctx.materias.filter(m => !esElectiva(m) && (ctx.estadosMap[m.id] || 'NO_CURSADA') === 'NO_CURSADA').length
 
   let periodosSinAvance = 0
   while (pasos.length < maxPasos && periodosSinAvance < 3) {
     const candidatas = ctx.materias
-      .filter(m => (ctx.estadosMap[m.id] || 'NO_CURSADA') === 'NO_CURSADA' && !colocadas.has(m.id))
+      .filter(m => !esElectiva(m) && (ctx.estadosMap[m.id] || 'NO_CURSADA') === 'NO_CURSADA' && !colocadas.has(m.id))
       .filter(m => checkCursadaRequirements(m.id, ctx, estadosSim).puede)
       .filter(m => materiaSeOfreceEnPeriodo(m, periodo))
       .map(m => ({ materia: m, atraso: computeImpactoCascada(m.id, ctx) }))
@@ -257,12 +282,17 @@ export function computeCaminoCompleto(ctx, maxPasos = 16) {
     // que TODAVÍA no entrarían por la vía normal, pero sí si se tramita la
     // excepción (ver pestaña Recomendaciones). Se muestran aparte, no se dan
     // por curdas automáticamente para el resto del camino: son una opción,
-    // no una obligación.
+    // no una obligación. Tampoco incluye electivas, por el mismo motivo.
     const porExcepcion = computeCondicionalidadCandidatos(ctx, estadosSim)
+      .filter(c => !esElectiva(c.materia))
       .filter(c => !colocadas.has(c.materia.id) && !idsNormales.has(c.materia.id))
       .filter(c => materiaSeOfreceEnPeriodo(c.materia, periodo))
 
-    if (candidatas.length > 0 || porExcepcion.length > 0) {
+    // Sólo cuenta como "avance" real si algo entra por la vía normal — si lo
+    // único que hay es una oportunidad por excepción que no se resuelve
+    // nunca (porque depende de algo que tampoco avanza), no tiene sentido
+    // repetir el mismo cartel en cada período siguiente hasta el límite.
+    if (candidatas.length > 0) {
       pasos.push({ periodo, materias: candidatas, porExcepcion })
       candidatas.forEach(({ materia }) => { estadosSim[materia.id] = 'PROMOCIONADA'; colocadas.add(materia.id) })
       periodosSinAvance = 0
@@ -274,10 +304,18 @@ export function computeCaminoCompleto(ctx, maxPasos = 16) {
     periodo = siguientePeriodo(periodo)
   }
 
+  // Si el camino normal se trabó antes de terminar, mostramos UNA sola vez
+  // (no repetido por período) qué quedaría disponible sólo si se tramita
+  // una excepción, evaluado en el último estado simulado alcanzado.
+  const oportunidadesFinales = (colocadas.size < totalPendientesInicial)
+    ? computeCondicionalidadCandidatos(ctx, estadosSim).filter(c => !esElectiva(c.materia) && !colocadas.has(c.materia.id))
+    : []
+
   return {
     pasos,
     materiasRestantes: totalPendientesInicial - colocadas.size,
     completo: colocadas.size >= totalPendientesInicial,
+    oportunidadesFinales,
   }
 }
 

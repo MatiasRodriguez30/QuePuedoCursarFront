@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Calendar, Clock, FastForward, Map, Sparkles, TrendingUp, Unlock } from 'lucide-react'
+import { Calendar, CheckCircle2, Clock, FastForward, GraduationCap, Map, Sparkles, TrendingUp, Unlock } from 'lucide-react'
 import { apiRequest } from '../lib/api'
-import { computeCaminoCompleto, computePrediccionCursando, getPeriodoActual } from '../lib/businessLogic'
+import { computeCaminoCompleto, computeCreditosElectivas, computePrediccionCursando, getPeriodoActual } from '../lib/businessLogic'
 
 const NOMBRE_CUATRI = (p) => p.cuatrimestre ? `${p.cuatrimestre}° cuatrimestre ${p.anio}` : `Anual ${p.anio}`
 
@@ -17,6 +17,7 @@ export default function RutaTab({ ctx, showToast, setConfigApp, esAdmin }) {
   const periodo = getPeriodoActual(ctx.configApp)
   const prediccion = useMemo(() => computePrediccionCursando(ctx), [ctx])
   const camino = useMemo(() => computeCaminoCompleto(ctx), [ctx])
+  const creditos = useMemo(() => computeCreditosElectivas(ctx), [ctx])
 
   async function guardarPeriodo() {
     const anio = parseInt(anioInput) || null
@@ -75,9 +76,23 @@ export default function RutaTab({ ctx, showToast, setConfigApp, esAdmin }) {
                 Te faltan al menos <span className="text-brand-400">{pasosCount} cuatrimestre{pasosCount === 1 ? '' : 's'}</span> (~{anios} año{anios == 1 ? '' : 's'}) cursando el máximo posible cada período.
               </p>
               {!camino.completo && (
-                <p className="text-xs text-amber-300/90 mt-1">
-                  Y quedarían {camino.materiasRestantes} materia{camino.materiasRestantes === 1 ? '' : 's'} sin ubicar en esa proyección (revisalas en "¿Qué Puedo Cursar?" — puede que dependan de una electiva que no se dicta este semestre).
-                </p>
+                <>
+                  <p className="text-xs text-amber-300/90 mt-1">
+                    Y quedarían {camino.materiasRestantes} materia{camino.materiasRestantes === 1 ? '' : 's'} sin ubicar en esa proyección (revisalas en "¿Qué Puedo Cursar?" — puede que dependan de una electiva que no se dicta este semestre).
+                  </p>
+                  {camino.oportunidadesFinales.length > 0 && (
+                    <div className="text-xs text-amber-200/90 mt-2 flex items-start gap-1.5">
+                      <FastForward className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                      <span>
+                        Algunas se destrabarían antes vía excepción: {camino.oportunidadesFinales.map(({ materia, correlativa, tipo }, i) => (
+                          <span key={materia.id}>
+                            <span className="font-semibold">{materia.nombre}</span> (te falta {tipo === 'REGULARIZADA' ? 'regularizar' : 'rendir el final de'} {correlativa?.nombre}){i < camino.oportunidadesFinales.length - 1 ? '; ' : ''}
+                          </span>
+                        ))}
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
@@ -231,6 +246,45 @@ export default function RutaTab({ ctx, showToast, setConfigApp, esAdmin }) {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Créditos de electivas: el plan pide horas por nivel, no materias puntuales */}
+      <div>
+        <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-1">
+          <GraduationCap className="w-4 h-4 text-teal-400" />
+          Créditos de Electivas
+        </h3>
+        <p className="text-xs text-slate-400 mb-3">No hace falta cursar todas las electivas cargadas: el plan pide una cantidad de horas semanales por nivel. Elegí cualquier combinación que llegue al total.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {creditos.map(({ nivel, requeridas, logradas, cumplido, disponibles }) => {
+            const pct = Math.min(100, Math.round((logradas / requeridas) * 100))
+            const cursables = disponibles.filter(m => {
+              const est = ctx.estadosMap[m.id] || 'NO_CURSADA'
+              return est === 'NO_CURSADA'
+            })
+            return (
+              <div key={nivel} className={`glass-card rounded-xl p-4 border ${cumplido ? 'border-emerald-500/30 bg-emerald-950/10' : 'border-slate-800/80'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-white">Nivel {nivel}</span>
+                  {cumplido && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                </div>
+                <div className="flex items-center justify-between text-xs font-mono mb-1">
+                  <span className={cumplido ? 'text-emerald-400' : 'text-slate-300'}>{logradas} / {requeridas} hs</span>
+                </div>
+                <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800 mb-2">
+                  <div className={`h-full ${cumplido ? 'bg-emerald-500' : 'bg-teal-500'} transition-all duration-500`} style={{ width: `${pct}%` }} />
+                </div>
+                {!cumplido && (
+                  <p className="text-[11px] text-slate-500">
+                    {cursables.length > 0
+                      ? `Disponibles ahora: ${cursables.map(m => m.nombre.replace(' (Electiva)', '')).join(', ')}`
+                      : 'Ninguna electiva de este nivel cargada como cursable todavía.'}
+                  </p>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
