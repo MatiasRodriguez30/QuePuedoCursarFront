@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Calendar, Map, Route, Sparkles, Unlock } from 'lucide-react'
+import { Calendar, Clock, FastForward, Map, Sparkles, TrendingUp, Unlock } from 'lucide-react'
 import { apiRequest } from '../lib/api'
-import { computePrediccionCursando, computeRutaSugerida, getPeriodoActual } from '../lib/businessLogic'
+import { computeCaminoCompleto, computePrediccionCursando, getPeriodoActual } from '../lib/businessLogic'
+
+const NOMBRE_CUATRI = (p) => p.cuatrimestre ? `${p.cuatrimestre}° cuatrimestre ${p.anio}` : `Anual ${p.anio}`
 
 export default function RutaTab({ ctx, showToast, setConfigApp, esAdmin }) {
   const [anioInput, setAnioInput] = useState(ctx.configApp.anio_actual || '')
@@ -14,7 +16,7 @@ export default function RutaTab({ ctx, showToast, setConfigApp, esAdmin }) {
 
   const periodo = getPeriodoActual(ctx.configApp)
   const prediccion = useMemo(() => computePrediccionCursando(ctx), [ctx])
-  const ruta = useMemo(() => computeRutaSugerida(ctx), [ctx])
+  const camino = useMemo(() => computeCaminoCompleto(ctx), [ctx])
 
   async function guardarPeriodo() {
     const anio = parseInt(anioInput) || null
@@ -46,22 +48,49 @@ export default function RutaTab({ ctx, showToast, setConfigApp, esAdmin }) {
     ? `✓ Configurado manualmente: ${periodo.cuatrimestre}° cuatrimestre ${periodo.anio}`
     : `Sin configurar — usando fecha del dispositivo: ${periodo.cuatrimestre || 'receso'}° cuatrimestre ${periodo.anio}`
 
+  const pasosCount = camino.pasos.length
+  const anios = (pasosCount / 2).toFixed(pasosCount % 2 === 0 ? 0 : 1)
+
   return (
     <div className="space-y-6">
       <div className="pb-2 border-b border-slate-800/80">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <Route className="w-4 h-4 text-brand-400" />
+          <Map className="w-4 h-4 text-brand-400" />
           Camino Óptimo de Cursada
         </h2>
-        <p className="text-xs text-slate-400">Sugerencia de orden de cursada priorizando lo que más te destraba, y qué podés esperar de las materias que ya estás cursando.</p>
+        <p className="text-xs text-slate-400">La secuencia completa, período por período, para terminar cursando lo máximo posible cada vez.</p>
       </div>
 
+      {/* Banner de atraso / tiempo estimado */}
+      <div className="glass-panel rounded-2xl p-5 border border-brand-500/30 bg-brand-950/10 flex items-center gap-4 flex-wrap">
+        <div className="h-11 w-11 rounded-xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center flex-shrink-0">
+          <Clock className="w-5 h-5 text-brand-400" />
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          {pasosCount === 0 ? (
+            <p className="text-sm font-bold text-emerald-300">¡No te queda nada pendiente que puedas planificar! 🎉</p>
+          ) : (
+            <>
+              <p className="text-sm font-bold text-white">
+                Te faltan al menos <span className="text-brand-400">{pasosCount} cuatrimestre{pasosCount === 1 ? '' : 's'}</span> (~{anios} año{anios == 1 ? '' : 's'}) cursando el máximo posible cada período.
+              </p>
+              {!camino.completo && (
+                <p className="text-xs text-amber-300/90 mt-1">
+                  Y quedarían {camino.materiasRestantes} materia{camino.materiasRestantes === 1 ? '' : 's'} sin ubicar en esa proyección (revisalas en "¿Qué Puedo Cursar?" — puede que dependan de una electiva que no se dicta este semestre).
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Momento actual */}
       <div className="glass-panel rounded-2xl p-5 border border-slate-800/80">
         <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-1">
           <Calendar className="w-4 h-4 text-brand-400" />
           Tu Momento Actual
         </h3>
-        <p className="text-xs text-slate-400 mb-3">Definilo para que la ruta sugerida y las "próximas oportunidades" sean exactas. Si lo dejás vacío, el sistema estima el cuatrimestre con la fecha de tu dispositivo.</p>
+        <p className="text-xs text-slate-400 mb-3">Definilo para que el camino y las "próximas oportunidades" sean exactas. Si lo dejás vacío, el sistema estima el cuatrimestre con la fecha de tu dispositivo.</p>
         {esAdmin ? (
           <div className="flex flex-wrap items-end gap-3">
             <div>
@@ -89,6 +118,7 @@ export default function RutaTab({ ctx, showToast, setConfigApp, esAdmin }) {
         )}
       </div>
 
+      {/* Predicción por materias "Cursando" */}
       <div>
         <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-1">
           <Sparkles className="w-4 h-4 text-sky-400" />
@@ -100,8 +130,8 @@ export default function RutaTab({ ctx, showToast, setConfigApp, esAdmin }) {
             No tenés materias marcadas como "Cursando" ahora. Marcalas en la pestaña "Mis Estados" para ver la predicción.
           </div>
         ) : (
-          <div className="glass-panel rounded-2xl p-4 border border-sky-500/20">
-            <div className="text-xs text-slate-400 mb-2">
+          <div className="glass-panel rounded-2xl p-4 border border-sky-500/20 space-y-3">
+            <div className="text-xs text-slate-400">
               Estás cursando:{' '}
               {prediccion.cursando.map((m, i) => (
                 <span key={m.id}>
@@ -110,65 +140,107 @@ export default function RutaTab({ ctx, showToast, setConfigApp, esAdmin }) {
                 </span>
               ))}
             </div>
-            {prediccion.desbloqueadas.length > 0 ? (
-              <div className="mt-3 pt-3 border-t border-slate-800/60">
-                <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider">Si las apruebas, vas a poder cursar:</span>
+
+            {prediccion.desbloqueadas.length > 0 && (
+              <div className="pt-3 border-t border-slate-800/60">
+                <span className="text-[11px] uppercase font-bold text-emerald-400 tracking-wider flex items-center gap-1"><Unlock className="w-3 h-3" /> Se desbloquean del todo:</span>
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {prediccion.desbloqueadas.map(m => (
                     <span key={m.id} className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                      <Unlock className="w-3 h-3" /> {m.nombre}
+                      {m.nombre}
                     </span>
                   ))}
                 </div>
               </div>
-            ) : (
-              <div className="mt-2 text-[11px] text-slate-500 italic">Aprobarlas no desbloquea materias nuevas todavía (puede que otras correlativas también estén pendientes).</div>
+            )}
+
+            {prediccion.acercadas.length > 0 && (
+              <div className="pt-3 border-t border-slate-800/60">
+                <span className="text-[11px] uppercase font-bold text-brand-400 tracking-wider flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Te acercan (todavía no del todo):</span>
+                <div className="space-y-1.5 mt-2">
+                  {prediccion.acercadas.map(({ materia, faltan }) => (
+                    <div key={materia.id} className="text-[11px] px-2.5 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300">
+                      <span className="font-semibold text-white">{materia.nombre}</span>
+                      <span className="text-slate-500"> — te seguiría faltando: {faltan.map(f => f.materia).join(', ')}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {prediccion.desbloqueadas.length === 0 && prediccion.acercadas.length === 0 && (
+              <div className="text-[11px] text-slate-500 italic pt-2 border-t border-slate-800/60">Aprobarlas no cambia nada más todavía (las materias que dependen de ellas tienen otras correlativas pendientes sin relación a esto).</div>
             )}
           </div>
         )}
       </div>
 
+      {/* Camino secuencial completo */}
       <div>
         <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-1">
           <Map className="w-4 h-4 text-emerald-400" />
-          Ruta Sugerida
+          Camino Sugerido, Paso a Paso
         </h3>
-        <p className="text-xs text-slate-400 mb-3">Ordenada por impacto en cascada: primero lo que más materias futuras destraba.</p>
-        <div className="space-y-5">
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-2 flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-[10px]">1</span> Cursá esto ahora
-            </h4>
-            <RutaGrid items={ruta.paso1} colorClass="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30" emptyText='No hay materias habilitadas para este período. Revisá "¿Qué Puedo Cursar?".' />
+        <p className="text-xs text-slate-400 mb-1">Cada paso asume que rendís y aprobás el final de todo lo del paso anterior (no sólo regularizarlo). Ordenado por impacto en cascada dentro de cada período.</p>
+        <p className="text-xs text-slate-500 mb-4">Donde diga <span className="text-amber-300 font-semibold">"vía excepción"</span> es una materia que normalmente no entraría todavía, pero sí si tramitás el Cursado Condicional (pestaña Recomendaciones) — es una opción extra, no hace falta tomarla para seguir el camino.</p>
+
+        {camino.pasos.length === 0 ? (
+          <div className="py-8 text-center text-xs text-slate-500 italic glass-panel rounded-xl border border-slate-800">Nada para planificar: no hay materias pendientes habilitables.</div>
+        ) : (
+          <div className="space-y-5">
+            {camino.pasos.map((paso, i) => (
+              <div key={i}>
+                <h4 className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: COLORES[i % COLORES.length].texto }}>
+                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] border" style={{ background: COLORES[i % COLORES.length].bg, borderColor: COLORES[i % COLORES.length].border }}>{i + 1}</span>
+                  {NOMBRE_CUATRI(paso.periodo)} {i === 0 ? '· ahora' : ''}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {paso.materias.map(({ materia, atraso }) => (
+                    <div key={materia.id} className="glass-card rounded-xl p-4 border border-slate-800/80">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">{materia.codigo}</span>
+                        {atraso.cantidad > 0 && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border" style={{ background: COLORES[i % COLORES.length].bg, color: COLORES[i % COLORES.length].texto, borderColor: COLORES[i % COLORES.length].border }}>
+                            Destraba {atraso.cantidad}
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="text-sm font-bold text-white leading-snug">{materia.nombre}</h4>
+                      <p className="text-[11px] text-slate-500 mt-1">{materia.anio ? `Año ${materia.anio}` : ''} {materia.cuatrimestre ? `• ${materia.cuatrimestre}°C` : '• Anual'}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {paso.porExcepcion && paso.porExcepcion.length > 0 && (
+                  <div className="mt-3 pl-3 border-l-2 border-amber-500/40 space-y-2">
+                    <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5"><FastForward className="w-3.5 h-3.5" /> Vía excepción, también podrías arrancar:</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {paso.porExcepcion.map(({ materia, correlativa, tipo }) => (
+                        <div key={materia.id} className="rounded-xl p-3 border border-amber-500/25 bg-amber-950/10">
+                          <span className="font-mono text-[11px] font-semibold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">{materia.codigo}</span>
+                          <h5 className="text-xs font-bold text-white leading-snug mt-1.5">{materia.nombre}</h5>
+                          <p className="text-[10px] text-amber-200/90 mt-1">
+                            Necesitás tramitar la excepción porque te falta {tipo === 'REGULARIZADA' ? 'regularizar' : 'rendir el final de'} <span className="font-semibold">{correlativa?.nombre}</span>
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-brand-400 mb-2 flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded-full bg-brand-500/20 border border-brand-500/40 flex items-center justify-center text-[10px]">2</span> Con eso, el próximo período vas a poder cursar
-            </h4>
-            <RutaGrid items={ruta.paso2} colorClass="bg-brand-500/15 text-brand-300 border border-brand-500/30" emptyText="Sin datos suficientes todavía para proyectar el próximo período." />
-          </div>
-        </div>
+        )}
       </div>
     </div>
   )
 }
 
-function RutaGrid({ items, colorClass, emptyText }) {
-  if (items.length === 0) {
-    return <div className="col-span-full py-6 text-center text-xs text-slate-500 italic glass-panel rounded-xl border border-slate-800">{emptyText}</div>
-  }
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {items.map(({ materia, atraso }) => (
-        <div key={materia.id} className="glass-card rounded-xl p-4 border border-slate-800/80">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">{materia.codigo}</span>
-            {atraso.cantidad > 0 && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${colorClass}`}>Destraba {atraso.cantidad}</span>}
-          </div>
-          <h4 className="text-sm font-bold text-white leading-snug">{materia.nombre}</h4>
-          <p className="text-[11px] text-slate-500 mt-1">{materia.anio ? `Año ${materia.anio}` : ''} {materia.cuatrimestre ? `• ${materia.cuatrimestre}°C` : '• Anual'}</p>
-        </div>
-      ))}
-    </div>
-  )
-}
+const COLORES = [
+  { bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.3)', texto: '#6ee7b7' },   // emerald
+  { bg: 'rgba(99,102,241,0.15)', border: 'rgba(99,102,241,0.3)', texto: '#a5b4fc' },   // brand
+  { bg: 'rgba(56,189,248,0.15)', border: 'rgba(56,189,248,0.3)', texto: '#7dd3fc' },   // sky
+  { bg: 'rgba(217,70,239,0.15)', border: 'rgba(217,70,239,0.3)', texto: '#f0abfc' },   // fuchsia
+  { bg: 'rgba(251,146,60,0.15)', border: 'rgba(251,146,60,0.3)', texto: '#fdba74' },   // orange
+  { bg: 'rgba(244,63,94,0.15)', border: 'rgba(244,63,94,0.3)', texto: '#fda4af' },     // rose
+]

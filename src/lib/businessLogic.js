@@ -155,18 +155,21 @@ export function otorgaCondicionalidad(cuatSolicitada, cuatCorrelativa) {
   return Object.prototype.hasOwnProperty.call(TABLA_CONDICIONALIDAD, key) ? TABLA_CONDICIONALIDAD[key] : null
 }
 
-export function computeCondicionalidadCandidatos(ctx) {
+// `estados` es inyectable para poder evaluar la excepción en un estado
+// SIMULADO (ej. "si ya aprobaste lo del paso 1 del camino, ¿qué se habilita
+// por condicionalidad en el paso 2?"), no sólo en el estado real actual.
+export function computeCondicionalidadCandidatos(ctx, estados = ctx.estadosMap) {
   const candidatos = []
   ctx.materias.forEach(m => {
-    const estado = ctx.estadosMap[m.id] || 'NO_CURSADA'
+    const estado = estados[m.id] || 'NO_CURSADA'
     if (estado !== 'NO_CURSADA') return
     if (!m.anio || m.anio < 4) return
-    const check = checkCursadaRequirements(m.id, ctx)
+    const check = checkCursadaRequirements(m.id, ctx, estados)
     if (check.puede || check.pendientes.length !== 1) return
 
     const reqs = ctx.prereqsByMateria[m.id] || []
     const pendiente = reqs.find(p => {
-      const reqEstado = ctx.estadosMap[p.materia_requerida_id] || 'NO_CURSADA'
+      const reqEstado = estados[p.materia_requerida_id] || 'NO_CURSADA'
       const okReg = p.tipo === 'REGULARIZADA' && (reqEstado === 'REGULAR' || reqEstado === 'PROMOCIONADA')
       const okApr = p.tipo === 'APROBADA' && reqEstado === 'PROMOCIONADA'
       return !okReg && !okApr
@@ -183,58 +186,99 @@ export function computeCondicionalidadCandidatos(ctx) {
 }
 
 // ── Predicción: ¿qué se desbloquea si apruebo lo que estoy cursando? ────
+// Además de lo que queda 100% habilitado, informa lo que "se acerca" (bajó
+// la cantidad de correlativas pendientes aunque no llegue a cero todavía),
+// para que la predicción diga algo útil incluso cuando nada se desbloquea
+// del todo con sólo esas materias.
 export function computePrediccionCursando(ctx) {
   const cursando = ctx.materias.filter(m => (ctx.estadosMap[m.id] || 'NO_CURSADA') === 'CURSANDO')
-  if (cursando.length === 0) return { cursando, desbloqueadas: [] }
+  if (cursando.length === 0) return { cursando, desbloqueadas: [], acercadas: [] }
 
   const estadosSimulados = { ...ctx.estadosMap }
   cursando.forEach(m => { estadosSimulados[m.id] = 'PROMOCIONADA' })
 
-  const desbloqueadas = ctx.materias.filter(m => {
+  const desbloqueadas = []
+  const acercadas = []
+
+  ctx.materias.forEach(m => {
     const estadoActual = ctx.estadosMap[m.id] || 'NO_CURSADA'
-    if (estadoActual !== 'NO_CURSADA') return false
-    const yaPuede = checkCursadaRequirements(m.id, ctx, ctx.estadosMap).puede
-    if (yaPuede) return false
-    return checkCursadaRequirements(m.id, ctx, estadosSimulados).puede
+    if (estadoActual !== 'NO_CURSADA') return
+    const antes = checkCursadaRequirements(m.id, ctx, ctx.estadosMap)
+    if (antes.puede) return
+    const despues = checkCursadaRequirements(m.id, ctx, estadosSimulados)
+    if (despues.puede) {
+      desbloqueadas.push(m)
+    } else if (despues.pendientes.length < antes.pendientes.length) {
+      acercadas.push({ materia: m, faltan: despues.pendientes })
+    }
   })
 
-  return { cursando, desbloqueadas }
+  return { cursando, desbloqueadas, acercadas }
 }
 
-// ── Ruta sugerida: qué cursar ahora y qué se abre el próximo período ────
+// ── Camino óptimo: ruta secuencial completa, período por período ───────
+// En vez de sólo "ahora" y "el próximo período", simula hacia adelante
+// cuántos períodos hacen falta para agotar todo el plan, cursando en cada
+// uno lo máximo posible (ordenado por impacto en cascada). Esto es lo que
+// permite responder "¿cuánto tiempo me falta?" y dar una secuencia real de
+// pasos, no sólo dos.
 function materiaSeOfreceEnPeriodo(materia, periodo) {
   if (!periodo.cuatrimestre) return true
   if (!materia.cuatrimestre) return true
   return materia.cuatrimestre === periodo.cuatrimestre
 }
 
-export function computeRutaSugerida(ctx) {
-  const periodoActual = getPeriodoActual(ctx.configApp)
+export function siguientePeriodo(periodo) {
+  return periodo.cuatrimestre === 1
+    ? { anio: periodo.anio, cuatrimestre: 2 }
+    : { anio: periodo.anio + 1, cuatrimestre: 1 }
+}
 
-  const paso1 = ctx.materias
-    .filter(m => (ctx.estadosMap[m.id] || 'NO_CURSADA') === 'NO_CURSADA')
-    .filter(m => checkCursadaRequirements(m.id, ctx).puede)
-    .filter(m => materiaSeOfreceEnPeriodo(m, periodoActual))
-    .map(m => ({ materia: m, atraso: computeImpactoCascada(m.id, ctx) }))
-    .sort((a, b) => b.atraso.cantidad - a.atraso.cantidad)
+export function computeCaminoCompleto(ctx, maxPasos = 16) {
+  const estadosSim = { ...ctx.estadosMap }
+  const colocadas = new Set()
+  let periodo = getPeriodoActual(ctx.configApp)
+  const pasos = []
 
-  const periodoSiguiente = periodoActual.cuatrimestre === 1
-    ? { anio: periodoActual.anio, cuatrimestre: 2 }
-    : { anio: periodoActual.anio + 1, cuatrimestre: 1 }
+  const totalPendientesInicial = ctx.materias.filter(m => (ctx.estadosMap[m.id] || 'NO_CURSADA') === 'NO_CURSADA').length
 
-  const estadosSimulados = { ...ctx.estadosMap }
-  paso1.forEach(({ materia }) => { estadosSimulados[materia.id] = 'PROMOCIONADA' })
-  const idsPaso1 = new Set(paso1.map(p => p.materia.id))
+  let periodosSinAvance = 0
+  while (pasos.length < maxPasos && periodosSinAvance < 3) {
+    const candidatas = ctx.materias
+      .filter(m => (ctx.estadosMap[m.id] || 'NO_CURSADA') === 'NO_CURSADA' && !colocadas.has(m.id))
+      .filter(m => checkCursadaRequirements(m.id, ctx, estadosSim).puede)
+      .filter(m => materiaSeOfreceEnPeriodo(m, periodo))
+      .map(m => ({ materia: m, atraso: computeImpactoCascada(m.id, ctx) }))
+      .sort((a, b) => b.atraso.cantidad - a.atraso.cantidad)
 
-  const paso2 = ctx.materias
-    .filter(m => (ctx.estadosMap[m.id] || 'NO_CURSADA') === 'NO_CURSADA' && !idsPaso1.has(m.id))
-    .filter(m => !checkCursadaRequirements(m.id, ctx, ctx.estadosMap).puede)
-    .filter(m => checkCursadaRequirements(m.id, ctx, estadosSimulados).puede)
-    .filter(m => materiaSeOfreceEnPeriodo(m, periodoSiguiente))
-    .map(m => ({ materia: m, atraso: computeImpactoCascada(m.id, ctx) }))
-    .sort((a, b) => b.atraso.cantidad - a.atraso.cantidad)
+    const idsNormales = new Set(candidatas.map(c => c.materia.id))
 
-  return { paso1, paso2, periodoActual, periodoSiguiente }
+    // Oportunidades de "Cursado Condicional" en este mismo período: materias
+    // que TODAVÍA no entrarían por la vía normal, pero sí si se tramita la
+    // excepción (ver pestaña Recomendaciones). Se muestran aparte, no se dan
+    // por curdas automáticamente para el resto del camino: son una opción,
+    // no una obligación.
+    const porExcepcion = computeCondicionalidadCandidatos(ctx, estadosSim)
+      .filter(c => !colocadas.has(c.materia.id) && !idsNormales.has(c.materia.id))
+      .filter(c => materiaSeOfreceEnPeriodo(c.materia, periodo))
+
+    if (candidatas.length > 0 || porExcepcion.length > 0) {
+      pasos.push({ periodo, materias: candidatas, porExcepcion })
+      candidatas.forEach(({ materia }) => { estadosSim[materia.id] = 'PROMOCIONADA'; colocadas.add(materia.id) })
+      periodosSinAvance = 0
+    } else {
+      periodosSinAvance += 1
+    }
+
+    if (colocadas.size >= totalPendientesInicial) break
+    periodo = siguientePeriodo(periodo)
+  }
+
+  return {
+    pasos,
+    materiasRestantes: totalPendientesInicial - colocadas.size,
+    completo: colocadas.size >= totalPendientesInicial,
+  }
 }
 
 export function buildPrereqsMap(materias, prerequisitos) {
