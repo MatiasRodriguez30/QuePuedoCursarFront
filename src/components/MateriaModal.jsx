@@ -6,7 +6,7 @@ const EMPTY = { nombre: '', anio: '', cuatrimestre: '', horas_semanales: '', es_
 
 const MODAL_TITLE_ID = 'materia-modal-title'
 
-export default function MateriaModal({ materia, onClose, showToast }) {
+export default function MateriaModal({ materia, carreraId, onClose, showToast }) {
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const isEdit = !!materia
@@ -49,7 +49,7 @@ export default function MateriaModal({ materia, onClose, showToast }) {
       if (isEdit) {
         await apiRequest(`/materias/${materia.id}`, { method: 'PUT', body: JSON.stringify(payload) })
       } else {
-        await apiRequest('/materias', { method: 'POST', body: JSON.stringify(payload) })
+        await apiRequest('/materias', { method: 'POST', body: JSON.stringify({ ...payload, carrera_id: carreraId }) })
       }
       onClose()
     } catch (err) {

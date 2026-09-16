@@ -4,6 +4,7 @@ import { checkExcepcionMachete, computeCondicionalidadCandidatos, proximaOportun
 
 export default function RecomendacionesTab({ ctx }) {
   const machete = useMemo(() => checkExcepcionMachete(ctx), [ctx])
+  const nombrePlan = ctx.carreraActual?.plan_nombre || ctx.carreraActual?.nombre || 'esta carrera'
   const candidatos = useMemo(() => computeCondicionalidadCandidatos(ctx), [ctx])
   const basicas = ctx.materias.filter(m => m.es_basica_compartida && (ctx.estadosMap[m.id] || 'NO_CURSADA') !== 'PROMOCIONADA')
 
@@ -17,7 +18,7 @@ export default function RecomendacionesTab({ ctx }) {
         <p className="text-xs text-slate-400">Basado en el "Machete" de prerequisitos (Ordenanza 1872) y las Pautas para Solicitud de Condicionalidad de Cursado (marzo/2023) de la Facultad. Son <b>orientativas</b>: la resolución final siempre depende del Departamento / Consejo Directivo.</p>
       </div>
 
-      <MacheteCard machete={machete} />
+      <MacheteCard machete={machete} nombrePlan={nombrePlan} />
 
       <div>
         <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-1">
@@ -116,10 +117,17 @@ const PASOS = [
   'Tenés que regularizar/aprobar la correlativa pendiente antes del <b>4º llamado</b> (si es de 1er cuatrimestre) u <b>8º llamado</b> (si es de 2do cuatrimestre). Si no lo hacés, <b>perdés la condicionalidad</b>.',
 ]
 
-function MacheteCard({ machete }) {
-  const { horasFaltantes, umbral, elegible, anioMax } = machete
+function MacheteCard({ machete, nombrePlan }) {
+  const { horasFaltantes, umbral, elegible, disponible, anioMax } = machete
   if (anioMax <= 1) {
     return <div className="glass-panel rounded-2xl p-5 border border-slate-800/80"><p className="text-xs text-slate-500 italic">Cargá materias con "Año Curricular" para poder evaluar esta excepción.</p></div>
+  }
+  if (!disponible) {
+    return (
+      <div className="glass-panel rounded-2xl p-5 border border-slate-800/80">
+        <p className="text-xs text-slate-500 italic">Esta carrera no tiene cargado un límite de horas para la excepción de Adelanto de Nivel (lo carga el admin al crear/editar la carrera, en el panel de Admin).</p>
+      </div>
+    )
   }
   const pct = Math.min(100, Math.round((horasFaltantes / umbral) * 100))
   return (
@@ -130,7 +138,7 @@ function MacheteCard({ machete }) {
             <FastForward className={`w-4 h-4 ${elegible ? 'text-emerald-400' : 'text-slate-400'}`} />
             Excepción de Adelanto de Nivel (Ordenanza 1872)
           </h3>
-          <p className="text-xs text-slate-400 mt-1 max-w-xl">Compara las horas semanales de lo que todavía no aprobaste (1º a {anioMax - 1}º año) contra las horas totales del último año ({umbral} hs, Plan Sistemas 2023). Si lo que te falta pesa menos, podés pedir cursar el último año sin haber terminado los anteriores (sólo para <b>cursar</b>, no para rendir finales).</p>
+          <p className="text-xs text-slate-400 mt-1 max-w-xl">Compara las horas semanales de lo que todavía no aprobaste (1º a {anioMax - 1}º año) contra las horas totales del último año ({umbral} hs, {nombrePlan}). Es una ordenanza general para carreras de Ingeniería de UTN; el límite de horas depende del plan de estudios de cada una. Si lo que te falta pesa menos, podés pedir cursar el último año sin haber terminado los anteriores (sólo para <b>cursar</b>, no para rendir finales).</p>
         </div>
         <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${elegible ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
           {elegible ? <CheckCircle className="w-3.5 h-3.5" /> : <CircleDashed className="w-3.5 h-3.5" />}

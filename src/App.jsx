@@ -6,6 +6,7 @@ import ToastContainer from './components/ToastContainer'
 import ConfirmDialog from './components/ConfirmDialog'
 import LoginScreen from './components/LoginScreen'
 import ResetPasswordScreen from './components/ResetPasswordScreen'
+import AdminTab from './tabs/AdminTab'
 import AgendaTab from './tabs/AgendaTab'
 import ConsultasTab from './tabs/ConsultasTab'
 import EstadosTab from './tabs/EstadosTab'
@@ -24,7 +25,7 @@ export default function App() {
   const { toasts, showToast, dismiss } = useToasts()
   const { confirmState, showConfirm, resolveConfirm } = useConfirm()
   const { usuario, checking, login, registrar, logout, esAdmin } = useAuth()
-  const { ctx, loading, wsStatus, setConfigApp, cargarEventos } = useAppData(showToast, usuario?.id)
+  const { ctx, loading, wsStatus, setConfigApp, cargarEventos, carreraId, setCarreraId } = useAppData(showToast, usuario?.id)
 
   const badgeDisponibles = useMemo(() => {
     return ctx.materias.filter(m => {
@@ -91,6 +92,9 @@ export default function App() {
         badgeRecomendaciones={badgeRecomendaciones}
         usuario={usuario}
         onLogout={logout}
+        carreras={ctx.carreras}
+        carreraId={carreraId}
+        onCarreraChange={setCarreraId}
       />
 
       <main role="main" aria-label="Contenido principal" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -98,10 +102,11 @@ export default function App() {
 
         {currentTab === 'consultas' && <ConsultasTab ctx={ctx} />}
         {currentTab === 'estados' && <EstadosTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} />}
-        {currentTab === 'plan' && <PlanTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} esAdmin={esAdmin} />}
+        {currentTab === 'plan' && <PlanTab ctx={ctx} />}
         {currentTab === 'recomendaciones' && <RecomendacionesTab ctx={ctx} />}
-        {currentTab === 'ruta' && <RutaTab ctx={ctx} showToast={showToast} setConfigApp={setConfigApp} esAdmin={esAdmin} />}
+        {currentTab === 'ruta' && <RutaTab ctx={ctx} />}
         {currentTab === 'agenda' && <AgendaTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} esAdmin={esAdmin} cargarEventos={cargarEventos} />}
+        {currentTab === 'admin' && esAdmin && <AdminTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} setConfigApp={setConfigApp} usuarioActualId={usuario.id} />}
       </main>
 
       <ToastContainer toasts={toasts} onDismiss={dismiss} />

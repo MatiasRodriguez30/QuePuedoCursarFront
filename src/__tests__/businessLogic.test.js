@@ -4,7 +4,6 @@ import {
   checkCursadaRequirements,
   esElectiva,
   checkExcepcionMachete,
-  HORAS_ULTIMO_ANIO_SISTEMAS_2023,
   otorgaCondicionalidad,
   siguientePeriodo,
   buildPrereqsMap

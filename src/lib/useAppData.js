@@ -2,11 +2,29 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiRequest, getWsUrl } from './api'
 import { buildPrereqsMap, formatEstadoText } from './businessLogic'
 
-// Hook central: trae todo (materias, estados, prerequisitos, config), abre el
-// WebSocket y mantiene el estado sincronizado en tiempo real. Devuelve tanto
-// los datos como los setters/acciones que los componentes necesitan.
-// `usuarioId` gatilla la carga: sin sesión (null) no pide nada todavía.
+const CARRERA_STORAGE_KEY = 'qpc_carrera_id'
+
+function leerCarreraGuardada() {
+  try {
+    const raw = localStorage.getItem(CARRERA_STORAGE_KEY)
+    return raw ? parseInt(raw, 10) : null
+  } catch (_) { return null }
+}
+
+function guardarCarreraSeleccionada(id) {
+  try {
+    if (id) localStorage.setItem(CARRERA_STORAGE_KEY, String(id))
+  } catch (_) { /* noop */ }
+}
+
+// Hook central: trae todo (carreras, materias, estados, prerequisitos,
+// config, eventos), abre el WebSocket y mantiene el estado sincronizado en
+// tiempo real. `usuarioId` gatilla la carga: sin sesión (null) no pide nada
+// todavía. La carrera seleccionada (para ver su plan/materias/ruta) vive
+// acá mismo, porque cambiarla dispara un refetch de materias/prereqs/config.
 export function useAppData(showToast, usuarioId) {
+  const [carreras, setCarreras] = useState([])
+  const [carreraId, setCarreraIdState] = useState(leerCarreraGuardada)
   const [materias, setMaterias] = useState([])
   const [estadosMap, setEstadosMap] = useState({})
   const [prerequisitos, setPrerequisitos] = useState([])
@@ -16,6 +34,10 @@ export function useAppData(showToast, usuarioId) {
   const [loading, setLoading] = useState(true)
   const usuarioIdRef = useRef(usuarioId)
   usuarioIdRef.current = usuarioId
+  const carreraIdRef = useRef(carreraId)
+  carreraIdRef.current = carreraId
+  const materiasRef = useRef(materias)
+  materiasRef.current = materias
 
   const wsRef = useRef(null)
   const pingIntervalRef = useRef(null)
@@ -27,7 +49,13 @@ export function useAppData(showToast, usuarioId) {
   const rangoEventosRef = useRef({ desde: null, hasta: null })
 
   const prereqsByMateria = buildPrereqsMap(materias, prerequisitos)
-  const ctx = { materias, estadosMap, prerequisitos, prereqsByMateria, configApp, eventos }
+  const carreraActual = carreras.find(c => c.id === carreraId) || null
+  const ctx = { carreras, carreraActual, materias, estadosMap, prerequisitos, prereqsByMateria, configApp, eventos }
+
+  const setCarreraId = useCallback((id) => {
+    guardarCarreraSeleccionada(id)
+    setCarreraIdState(id)
+  }, [])
 
   const cargarEventos = useCallback(async (desde, hasta) => {
     rangoEventosRef.current = { desde, hasta }
@@ -40,35 +68,71 @@ export function useAppData(showToast, usuarioId) {
   }, [])
 
   const reloadPrereqs = useCallback(async () => {
-    const data = await apiRequest('/prerequisitos')
+    if (!carreraIdRef.current) return
+    const data = await apiRequest(`/prerequisitos?carrera_id=${carreraIdRef.current}`)
     setPrerequisitos(data)
   }, [])
 
-  const fetchAll = useCallback(async () => {
+  // Trae la lista de carreras y el progreso del usuario (cruza todas las
+  // carreras: EstadoMateria vive ligado a la materia, no a una selección
+  // puntual, así que no hace falta re-pedirlo al cambiar de carrera).
+  const fetchInicial = useCallback(async () => {
     if (!usuarioIdRef.current) { setLoading(false); return }
     try {
-      const [mats, ests, prereqs, cfg] = await Promise.all([
-        apiRequest('/materias'),
+      const [cars, ests] = await Promise.all([
+        apiRequest('/carreras'),
         apiRequest('/estados'),
-        apiRequest('/prerequisitos'),
-        apiRequest('/config').catch(() => ({ anio_actual: null, cuatrimestre_actual: null })),
       ])
-      setMaterias(mats)
+      setCarreras(cars)
       const eMap = {}
       ests.forEach(e => { eMap[e.materia_id] = e.estado })
       setEstadosMap(eMap)
+
+      // Si no hay carrera seleccionada (primera vez) o la guardada ya no
+      // existe, elegimos la primera disponible.
+      if (cars.length > 0 && !cars.some(c => c.id === carreraIdRef.current)) {
+        setCarreraId(cars[0].id)
+      } else if (cars.length === 0) {
+        // Todavía no se cargó ninguna carrera: no hay nada que esperar del
+        // efecto de fetchCarrera (nunca se dispara sin carreraId), así que
+        // el loading se apaga acá para no quedar colgado.
+        setLoading(false)
+      }
+    } catch (err) {
+      showToastRef.current?.('error', 'Error de Carga', 'No se pudo sincronizar con el servidor: ' + err.message)
+      setLoading(false)
+    }
+  }, [setCarreraId])
+
+  useEffect(() => {
+    fetchInicial()
+  }, [fetchInicial, usuarioId])
+
+  // Materias/prerequisitos/config son propios de la carrera seleccionada:
+  // se recargan cada vez que cambia.
+  const fetchCarrera = useCallback(async (id) => {
+    if (!id) { setLoading(false); return }
+    try {
+      const [mats, prereqs, cfg] = await Promise.all([
+        apiRequest(`/materias?carrera_id=${id}`),
+        apiRequest(`/prerequisitos?carrera_id=${id}`),
+        apiRequest(`/config?carrera_id=${id}`).catch(() => ({ carrera_id: id, anio_actual: null, cuatrimestre_actual: null })),
+      ])
+      setMaterias(mats)
       setPrerequisitos(prereqs)
       setConfigApp(cfg)
     } catch (err) {
-      showToastRef.current?.('error', 'Error de Carga', 'No se pudo sincronizar con el servidor: ' + err.message)
+      showToastRef.current?.('error', 'Error de Carga', 'No se pudo cargar el plan de la carrera: ' + err.message)
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchAll()
-  }, [fetchAll, usuarioId])
+    if (!carreraId) return
+    setLoading(true)
+    fetchCarrera(carreraId)
+  }, [carreraId, fetchCarrera])
 
   // ── WebSocket ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -122,24 +186,31 @@ export function useAppData(showToast, usuarioId) {
     function handleEvent({ event, data }) {
       switch (event) {
         case 'materia_creada':
+          if (data.carrera_id !== carreraIdRef.current) break
           setMaterias(prev => prev.some(m => m.id === data.id) ? prev : [...prev, data])
           setEstadosMap(prev => ({ ...prev, [data.id]: 'NO_CURSADA' }))
           showToastRef.current?.('success', 'Nueva Asignatura', `"${data.nombre}" agregada al plan`)
           break
 
         case 'materia_actualizada':
+          if (data.carrera_id !== carreraIdRef.current) break
           setMaterias(prev => prev.map(m => m.id === data.id ? data : m))
           showToastRef.current?.('info', 'Asignatura Modificada', `"${data.nombre}" actualizada`)
           break
 
-        case 'materia_eliminada':
+        case 'materia_eliminada': {
+          // El payload sólo trae el id (no la carrera): usamos si estaba en
+          // la lista actualmente cargada para no mostrar ruido de otra carrera.
+          const eraDeEstaCarrera = materiasRef.current.some(m => m.id === data.id)
           setMaterias(prev => prev.filter(m => m.id !== data.id))
-          setEstadosMap(prev => { const n = { ...prev }; delete n[data.id]; return n })
+          setEstadosMap(prev => { if (!(data.id in prev)) return prev; const n = { ...prev }; delete n[data.id]; return n })
           setPrerequisitos(prev => prev.filter(p => p.materia_requerida_id !== data.id && p.materia_id !== data.id))
-          showToastRef.current?.('warning', 'Asignatura Eliminada', 'Se removió del plan de estudios')
+          if (eraDeEstaCarrera) showToastRef.current?.('warning', 'Asignatura Eliminada', 'Se removió del plan de estudios')
           break
+        }
 
         case 'prerequisito_creado':
+          if (data.materia_requerida?.carrera_id !== carreraIdRef.current) break
           reloadPrereqs()
           showToastRef.current?.('info', 'Correlatividad Establecida', 'Requisito registrado')
           break
@@ -168,8 +239,27 @@ export function useAppData(showToast, usuarioId) {
         }
 
         case 'config_actualizada':
+          if (data.carrera_id !== carreraIdRef.current) break
           setConfigApp(data)
           showToastRef.current?.('info', 'Período Actualizado', 'Cuatrimestre actual sincronizado')
+          break
+
+        case 'carrera_creada':
+          setCarreras(prev => prev.some(c => c.id === data.id) ? prev : [...prev, data].sort((a, b) => a.nombre.localeCompare(b.nombre)))
+          showToastRef.current?.('success', 'Nueva Carrera', `"${data.nombre}" está disponible`)
+          break
+
+        case 'carrera_actualizada':
+          setCarreras(prev => prev.map(c => c.id === data.id ? data : c))
+          if (data.id === carreraIdRef.current) showToastRef.current?.('info', 'Carrera Actualizada', `"${data.nombre}" se actualizó`)
+          break
+
+        case 'carrera_eliminada':
+          setCarreras(prev => prev.filter(c => c.id !== data.id))
+          if (data.id === carreraIdRef.current) {
+            showToastRef.current?.('warning', 'Carrera Eliminada', 'La carrera que estabas viendo ya no existe')
+            setMaterias([]); setPrerequisitos([]); setConfigApp({ anio_actual: null, cuatrimestre_actual: null })
+          }
           break
 
         case 'evento_creado': {
@@ -205,5 +295,17 @@ export function useAppData(showToast, usuarioId) {
     }
   }, [reloadPrereqs, usuarioId])
 
-  return { ctx, loading, wsStatus, setEstadosMap, setConfigApp, refetch: fetchAll, cargarEventos }
+  return {
+    ctx,
+    loading,
+    wsStatus,
+    setEstadosMap,
+    setConfigApp,
+    refetch: fetchInicial,
+    cargarEventos,
+    carreraId,
+    setCarreraId,
+    reloadCarreras: fetchInicial,
+    reloadMateriasYPrereqs: () => carreraId && fetchCarrera(carreraId),
+  }
 }

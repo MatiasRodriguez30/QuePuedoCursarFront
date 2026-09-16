@@ -1,4 +1,4 @@
-import { BookOpen, Calendar, Check, Compass, GraduationCap, Lightbulb, LogOut, Route, Shield, Terminal } from 'lucide-react'
+import { BookOpen, Calendar, Check, Compass, GraduationCap, Lightbulb, LogOut, Route, Settings, Shield, Terminal } from 'lucide-react'
 import { API_BASE } from '../lib/api'
 
 const TABS = [
@@ -9,6 +9,8 @@ const TABS = [
   { id: 'ruta', label: 'Camino Óptimo', icon: Route },
   { id: 'agenda', label: 'Agenda', icon: Calendar },
 ]
+
+const ADMIN_TAB = { id: 'admin', label: 'Admin', icon: Settings }
 
 const WS_CFG = {
   connected: {
@@ -31,8 +33,10 @@ const WS_CFG = {
   },
 }
 
-export default function Header({ currentTab, onTabChange, wsStatus, badgeDisponibles, badgeRecomendaciones, usuario, onLogout }) {
+export default function Header({ currentTab, onTabChange, wsStatus, badgeDisponibles, badgeRecomendaciones, usuario, onLogout, carreras, carreraId, onCarreraChange }) {
   const wsCfg = WS_CFG[wsStatus] ?? WS_CFG.disconnected
+  const esAdmin = usuario?.rol === 'ADMIN'
+  const tabs = esAdmin ? [...TABS, ADMIN_TAB] : TABS
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md">
@@ -55,6 +59,19 @@ export default function Header({ currentTab, onTabChange, wsStatus, badgeDisponi
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Selector de carrera: qué plan de estudios está viendo/trackeando ahora */}
+          {carreras && carreras.length > 0 && (
+            <select
+              value={carreraId || ''}
+              onChange={e => onCarreraChange(parseInt(e.target.value, 10))}
+              aria-label="Carrera actual"
+              title="Cambiar de carrera"
+              className="bg-slate-900/80 border border-slate-800 rounded-lg pl-2.5 pr-6 py-1.5 text-xs font-semibold text-slate-200 focus:outline-none focus:border-brand-500 max-w-[110px] sm:max-w-[180px] truncate"
+            >
+              {carreras.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            </select>
+          )}
+
           {/* Badge de estado WS con tooltip */}
           <div
             title={wsCfg.tooltip}
@@ -99,7 +116,7 @@ export default function Header({ currentTab, onTabChange, wsStatus, badgeDisponi
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-1 border-t border-slate-800/60 overflow-x-auto" role="tablist" aria-label="Secciones de la aplicación">
-        {TABS.map(tab => {
+        {tabs.map(tab => {
           const Icon = tab.icon
           const active = currentTab === tab.id
           const badge = tab.id === 'consultas' ? badgeDisponibles : tab.id === 'recomendaciones' ? badgeRecomendaciones : null

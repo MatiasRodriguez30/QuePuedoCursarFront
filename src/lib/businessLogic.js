@@ -147,9 +147,11 @@ export function proximaOportunidad(materia, ctx) {
 }
 
 // ── Excepción "Machete" — Ordenanza 1872 (adelanto de nivel) ────────────
-export const HORAS_ULTIMO_ANIO_SISTEMAS_2023 = 32
-
+// El límite de horas es propio de cada carrera (ctx.carreraActual.horas_excepcion_ultimo_anio,
+// cargado por el admin al crear la carrera) — no todas las carreras tienen
+// esta excepción disponible (umbral null = no aplica).
 export function checkExcepcionMachete(ctx) {
+  const umbral = ctx.carreraActual?.horas_excepcion_ultimo_anio ?? null
   const anioMax = Math.max(0, ...ctx.materias.filter(m => !m.codigo.startsWith('E-')).map(m => m.anio || 0))
   const horasFaltantes = ctx.materias
     .filter(m => !m.codigo.startsWith('E-') && m.anio && m.anio < anioMax)
@@ -158,8 +160,9 @@ export function checkExcepcionMachete(ctx) {
 
   return {
     horasFaltantes,
-    umbral: HORAS_ULTIMO_ANIO_SISTEMAS_2023,
-    elegible: horasFaltantes < HORAS_ULTIMO_ANIO_SISTEMAS_2023,
+    umbral,
+    elegible: umbral != null && horasFaltantes < umbral,
+    disponible: umbral != null,
     anioMax,
   }
 }
