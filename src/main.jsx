@@ -8,3 +8,12 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>,
 )
+
+// Registro del service worker (sólo en producción: en dev con HMR sólo
+// causaría cachear módulos viejos por error). Requisito de Chrome/Android
+// para poder instalar la app como PWA.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* no rompe la app si falla */ })
+  })
+}
