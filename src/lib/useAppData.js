@@ -63,6 +63,12 @@ export function useAppData(showToast, usuarioId) {
     rangoEventosRef.current = { desde, hasta }
     try {
       const data = await apiRequest(`/eventos?desde=${desde}&hasta=${hasta}`)
+      // Si mientras esperaba la respuesta el usuario ya navegó a otro mes
+      // (rangoEventosRef cambió), esta respuesta quedó vieja: aplicarla
+      // pisaría los eventos del rango que se está mostrando ahora con los
+      // de uno anterior. Se descarta; la carga del rango actual ya está en
+      // vuelo (o ya resolvió) por su propio llamado a cargarEventos.
+      if (rangoEventosRef.current.desde !== desde || rangoEventosRef.current.hasta !== hasta) return
       setEventos(data)
     } catch (err) {
       showToastRef.current?.('error', 'Error de Carga', 'No se pudo cargar la agenda: ' + err.message)
