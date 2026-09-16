@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Award } from 'lucide-react'
-import { checkCursadaRequirements } from '../lib/businessLogic'
+import { checkCursadaRequirements, esElectiva } from '../lib/businessLogic'
 
 /** Anima un número del 0 al valor `target` usando requestAnimationFrame. */
 function useCountUp(target, duration = 800) {
@@ -41,7 +41,12 @@ function progressBarColor(pct) {
 }
 
 export default function HeroMetrics({ ctx }) {
-  const { materias, estadosMap } = ctx
+  const { estadosMap } = ctx
+  // El plan no exige cursar TODAS las electivas cargadas (son ejemplos de un
+  // pool, ver esElectiva en businessLogic.js), sólo acumular horas por nivel
+  // — así que no cuentan para el avance general de la carrera, igual que en
+  // el Camino Óptimo. Su progreso propio se ve en "Créditos de Electivas".
+  const materias = ctx.materias.filter(m => !esElectiva(m))
   const total = materias.length
   let countPromo = 0, countReg = 0, countCursando = 0, countDisponibles = 0
 
