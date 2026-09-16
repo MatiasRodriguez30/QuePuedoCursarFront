@@ -11,6 +11,7 @@ export function useAppData(showToast, usuarioId) {
   const [estadosMap, setEstadosMap] = useState({})
   const [prerequisitos, setPrerequisitos] = useState([])
   const [configApp, setConfigApp] = useState({ anio_actual: null, cuatrimestre_actual: null })
+  const [eventos, setEventos] = useState([])
   const [wsStatus, setWsStatus] = useState('connecting') // connecting | connected | disconnected
   const [loading, setLoading] = useState(true)
   const usuarioIdRef = useRef(usuarioId)
@@ -20,9 +21,23 @@ export function useAppData(showToast, usuarioId) {
   const pingIntervalRef = useRef(null)
   const showToastRef = useRef(showToast)
   showToastRef.current = showToast
+  // Rango de fechas actualmente pedido por la Agenda, para saber si un evento
+  // que llega por WS entra en lo que ya está cargado (si no, se ignora: se
+  // va a traer solo cuando el usuario navegue a ese mes).
+  const rangoEventosRef = useRef({ desde: null, hasta: null })
 
   const prereqsByMateria = buildPrereqsMap(materias, prerequisitos)
-  const ctx = { materias, estadosMap, prerequisitos, prereqsByMateria, configApp }
+  const ctx = { materias, estadosMap, prerequisitos, prereqsByMateria, configApp, eventos }
+
+  const cargarEventos = useCallback(async (desde, hasta) => {
+    rangoEventosRef.current = { desde, hasta }
+    try {
+      const data = await apiRequest(`/eventos?desde=${desde}&hasta=${hasta}`)
+      setEventos(data)
+    } catch (err) {
+      showToastRef.current?.('error', 'Error de Carga', 'No se pudo cargar la agenda: ' + err.message)
+    }
+  }, [])
 
   const reloadPrereqs = useCallback(async () => {
     const data = await apiRequest('/prerequisitos')
@@ -157,6 +172,25 @@ export function useAppData(showToast, usuarioId) {
           showToastRef.current?.('info', 'Período Actualizado', 'Cuatrimestre actual sincronizado')
           break
 
+        case 'evento_creado': {
+          const { desde, hasta } = rangoEventosRef.current
+          if (desde && hasta && data.fecha >= desde && data.fecha <= hasta) {
+            setEventos(prev => prev.some(e => e.id === data.id) ? prev : [...prev, data].sort((a, b) => (a.fecha + (a.hora_inicio || '')).localeCompare(b.fecha + (b.hora_inicio || ''))))
+          }
+          showToastRef.current?.('success', 'Nuevo Evento', `"${data.titulo}" agregado a la agenda`)
+          break
+        }
+
+        case 'evento_actualizado':
+          setEventos(prev => prev.map(e => e.id === data.id ? data : e))
+          showToastRef.current?.('info', 'Evento Modificado', `"${data.titulo}" actualizado`)
+          break
+
+        case 'evento_eliminado':
+          setEventos(prev => prev.filter(e => e.id !== data.id))
+          showToastRef.current?.('warning', 'Evento Eliminado', 'Se removió de la agenda')
+          break
+
         default:
           break
       }
@@ -171,5 +205,5 @@ export function useAppData(showToast, usuarioId) {
     }
   }, [reloadPrereqs, usuarioId])
 
-  return { ctx, loading, wsStatus, setEstadosMap, setConfigApp, refetch: fetchAll }
+  return { ctx, loading, wsStatus, setEstadosMap, setConfigApp, refetch: fetchAll, cargarEventos }
 }

@@ -6,6 +6,7 @@ import ToastContainer from './components/ToastContainer'
 import ConfirmDialog from './components/ConfirmDialog'
 import LoginScreen from './components/LoginScreen'
 import ResetPasswordScreen from './components/ResetPasswordScreen'
+import AgendaTab from './tabs/AgendaTab'
 import ConsultasTab from './tabs/ConsultasTab'
 import EstadosTab from './tabs/EstadosTab'
 import PlanTab from './tabs/PlanTab'
@@ -23,7 +24,7 @@ export default function App() {
   const { toasts, showToast, dismiss } = useToasts()
   const { confirmState, showConfirm, resolveConfirm } = useConfirm()
   const { usuario, checking, login, registrar, logout, esAdmin } = useAuth()
-  const { ctx, loading, wsStatus, setConfigApp } = useAppData(showToast, usuario?.id)
+  const { ctx, loading, wsStatus, setConfigApp, cargarEventos } = useAppData(showToast, usuario?.id)
 
   const badgeDisponibles = useMemo(() => {
     return ctx.materias.filter(m => {
@@ -100,6 +101,7 @@ export default function App() {
         {currentTab === 'plan' && <PlanTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} esAdmin={esAdmin} />}
         {currentTab === 'recomendaciones' && <RecomendacionesTab ctx={ctx} />}
         {currentTab === 'ruta' && <RutaTab ctx={ctx} showToast={showToast} setConfigApp={setConfigApp} esAdmin={esAdmin} />}
+        {currentTab === 'agenda' && <AgendaTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} esAdmin={esAdmin} cargarEventos={cargarEventos} />}
       </main>
 
       <ToastContainer toasts={toasts} onDismiss={dismiss} />

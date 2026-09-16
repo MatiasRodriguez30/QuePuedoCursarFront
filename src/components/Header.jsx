@@ -1,4 +1,4 @@
-import { BookOpen, Check, Compass, GraduationCap, Lightbulb, LogOut, Route, Shield, Terminal } from 'lucide-react'
+import { BookOpen, Calendar, Check, Compass, GraduationCap, Lightbulb, LogOut, Route, Shield, Terminal } from 'lucide-react'
 import { API_BASE } from '../lib/api'
 
 const TABS = [
@@ -7,6 +7,7 @@ const TABS = [
   { id: 'plan', label: 'Plan de Estudios', icon: BookOpen },
   { id: 'recomendaciones', label: 'Recomendaciones', icon: Lightbulb },
   { id: 'ruta', label: 'Camino Óptimo', icon: Route },
+  { id: 'agenda', label: 'Agenda', icon: Calendar },
 ]
 
 const WS_CFG = {
