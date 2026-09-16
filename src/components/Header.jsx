@@ -40,25 +40,25 @@ export default function Header({ currentTab, onTabChange, wsStatus, badgeDisponi
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 p-0.5 shadow-lg shadow-brand-500/20 flex items-center justify-center">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-16 py-2 flex items-center justify-between gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 p-0.5 shadow-lg shadow-brand-500/20 flex items-center justify-center flex-shrink-0">
             <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-brand-400" />
             </div>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold tracking-tight text-white flex items-center gap-1.5">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-sm sm:text-base font-bold tracking-tight text-white truncate">
                 Qué Puedo Cursar
-                <span className="text-[10px] uppercase font-semibold tracking-wider px-1.5 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20">v3.0</span>
               </h1>
+              <span className="hidden sm:inline-block text-[10px] uppercase font-semibold tracking-wider px-1.5 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20 flex-shrink-0">v3.0</span>
             </div>
             <p className="text-xs text-slate-400 hidden sm:block">Planificador universitario en tiempo real</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
           {/* Selector de carrera: qué plan de estudios está viendo/trackeando ahora */}
           {carreras && carreras.length > 0 && (
             <select
@@ -66,7 +66,7 @@ export default function Header({ currentTab, onTabChange, wsStatus, badgeDisponi
               onChange={e => onCarreraChange(parseInt(e.target.value, 10))}
               aria-label="Carrera actual"
               title="Cambiar de carrera"
-              className="bg-slate-900/80 border border-slate-800 rounded-lg pl-2.5 pr-6 py-1.5 text-xs font-semibold text-slate-200 focus:outline-none focus:border-brand-500 max-w-[110px] sm:max-w-[180px] truncate"
+              className="bg-slate-900/80 border border-slate-800 rounded-lg pl-2 pr-5 sm:pl-2.5 sm:pr-6 py-1.5 text-xs font-semibold text-slate-200 focus:outline-none focus:border-brand-500 max-w-[76px] sm:max-w-[180px] truncate"
             >
               {carreras.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
@@ -75,7 +75,7 @@ export default function Header({ currentTab, onTabChange, wsStatus, badgeDisponi
           {/* Badge de estado WS con tooltip */}
           <div
             title={wsCfg.tooltip}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs transition-all duration-300 cursor-default ${wsCfg.badge}`}
+            className={`flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-full border text-xs transition-all duration-300 cursor-default flex-shrink-0 ${wsCfg.badge}`}
           >
             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${wsCfg.dot}`} aria-hidden="true" />
             {/* En mobile solo el punto; en ≥md aparece el texto */}
@@ -115,7 +115,7 @@ export default function Header({ currentTab, onTabChange, wsStatus, badgeDisponi
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-1 border-t border-slate-800/60 overflow-x-auto" role="tablist" aria-label="Secciones de la aplicación">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 flex space-x-1 border-t border-slate-800/60 overflow-x-auto" role="tablist" aria-label="Secciones de la aplicación">
         {tabs.map(tab => {
           const Icon = tab.icon
           const active = currentTab === tab.id
@@ -126,7 +126,7 @@ export default function Header({ currentTab, onTabChange, wsStatus, badgeDisponi
               role="tab"
               aria-selected={active}
               onClick={() => onTabChange(tab.id)}
-              className={`flex items-center gap-2 py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 px-2.5 sm:px-4 text-xs sm:text-sm font-semibold border-b-2 whitespace-nowrap transition-colors flex-shrink-0 ${
                 active ? 'border-brand-500 text-brand-400' : 'border-transparent text-slate-400 hover:text-slate-200'
               }`}
             >
