@@ -1,7 +1,31 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, Edit3, MapPin, Plus, Trash2 } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock, Edit3, MapPin, Plus, Trash2 } from 'lucide-react'
 import { apiRequest } from '../lib/api'
 import EventoModal from '../components/EventoModal'
+
+// Las descripciones importadas del calendario de UTN (listas de materias por
+// mesa de examen) suelen ser largas: se muestran truncadas con un toggle en
+// vez de cortarlas sin forma de ver el resto (ver feedback de usuario).
+const LARGO_COLAPSADO = 140
+
+function DescripcionEvento({ texto }) {
+  const [expandido, setExpandido] = useState(false)
+  const esLarga = texto.length > LARGO_COLAPSADO
+
+  return (
+    <div className="mt-1.5">
+      <p className={`text-xs text-slate-400 whitespace-pre-line ${esLarga && !expandido ? 'line-clamp-3' : ''}`}>{texto}</p>
+      {esLarga && (
+        <button
+          onClick={() => setExpandido(v => !v)}
+          className="flex items-center gap-1 text-[11px] font-semibold text-brand-400 hover:text-brand-300 mt-1"
+        >
+          {expandido ? <>Ver menos <ChevronUp className="w-3 h-3" aria-hidden="true" /></> : <>Ver detalle completo <ChevronDown className="w-3 h-3" aria-hidden="true" /></>}
+        </button>
+      )}
+    </div>
+  )
+}
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
@@ -158,7 +182,7 @@ export default function AgendaTab({ ctx, showToast, showConfirm, esAdmin, cargar
                           </span>
                         )}
                       </div>
-                      {ev.descripcion && <p className="text-xs text-slate-400 mt-1.5 whitespace-pre-line line-clamp-4">{ev.descripcion}</p>}
+                      {ev.descripcion && <DescripcionEvento texto={ev.descripcion} />}
                       {ev.origen === 'IMPORTADO' && (
                         <span className="inline-block mt-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">
                           Calendario UTN
