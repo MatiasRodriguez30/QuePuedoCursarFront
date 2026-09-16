@@ -38,6 +38,8 @@ export function useAppData(showToast, usuarioId) {
   carreraIdRef.current = carreraId
   const materiasRef = useRef(materias)
   materiasRef.current = materias
+  const carrerasRef = useRef(carreras)
+  carrerasRef.current = carreras
 
   const wsRef = useRef(null)
   const pingIntervalRef = useRef(null)
@@ -254,13 +256,23 @@ export function useAppData(showToast, usuarioId) {
           if (data.id === carreraIdRef.current) showToastRef.current?.('info', 'Carrera Actualizada', `"${data.nombre}" se actualizó`)
           break
 
-        case 'carrera_eliminada':
-          setCarreras(prev => prev.filter(c => c.id !== data.id))
+        case 'carrera_eliminada': {
+          const restantes = carrerasRef.current.filter(c => c.id !== data.id)
+          setCarreras(restantes)
           if (data.id === carreraIdRef.current) {
             showToastRef.current?.('warning', 'Carrera Eliminada', 'La carrera que estabas viendo ya no existe')
-            setMaterias([]); setPrerequisitos([]); setConfigApp({ anio_actual: null, cuatrimestre_actual: null })
+            // Al cambiar carreraId, el efecto que mira esa dependencia se
+            // encarga de recargar materias/prereqs/config de la nueva (o de
+            // dejar todo vacío si no queda ninguna carrera).
+            if (restantes.length > 0) {
+              setCarreraId(restantes[0].id)
+            } else {
+              setCarreraId(null)
+              setMaterias([]); setPrerequisitos([]); setConfigApp({ anio_actual: null, cuatrimestre_actual: null })
+            }
           }
           break
+        }
 
         case 'evento_creado': {
           const { desde, hasta } = rangoEventosRef.current
