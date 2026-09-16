@@ -46,11 +46,13 @@ export default function EventoModal({ evento, fechaPorDefecto, onClose, showToas
       }
       if (isEdit) {
         await apiRequest(`/eventos/${evento.id}`, { method: 'PUT', body: JSON.stringify(payload) })
-        showToast('success', 'Evento Actualizado', `"${form.titulo}" se guardó correctamente`)
       } else {
         await apiRequest('/eventos', { method: 'POST', body: JSON.stringify(payload) })
-        showToast('success', 'Evento Agregado', `"${form.titulo}" se agregó a la agenda`)
       }
+      // No mostramos toast de éxito acá: el broadcast del WebSocket (ver
+      // useAppData.js) ya lo hace para todos los clientes conectados,
+      // incluido este mismo — mostrar otro acá sería duplicarlo (mismo
+      // patrón que MateriaModal).
       onClose()
     } catch (err) {
       showToast('error', 'Error', err.message)
