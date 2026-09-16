@@ -92,7 +92,7 @@ export default function App() {
         onLogout={logout}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main role="main" aria-label="Contenido principal" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         <HeroMetrics ctx={ctx} />
 
         {currentTab === 'consultas' && <ConsultasTab ctx={ctx} />}

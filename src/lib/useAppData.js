@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { apiRequest, WS_URL } from './api'
+import { apiRequest, getWsUrl } from './api'
 import { buildPrereqsMap, formatEstadoText } from './businessLogic'
 
 // Hook central: trae todo (materias, estados, prerequisitos, config), abre el
@@ -63,9 +63,15 @@ export function useAppData(showToast, usuarioId) {
 
     function connect() {
       if (cancelled) return
+      const wsUrl = getWsUrl()
+      if (!wsUrl) {
+        setWsStatus('disconnected')
+        reconnectTimer = setTimeout(connect, 4000)
+        return
+      }
       let ws
       try {
-        ws = new WebSocket(WS_URL)
+        ws = new WebSocket(wsUrl)
       } catch (_) {
         setWsStatus('disconnected')
         reconnectTimer = setTimeout(connect, 4000)
