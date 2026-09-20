@@ -59,6 +59,32 @@ describe('useAppData: aislamiento del cache entre usuarios', () => {
     unmount()
   })
 
+  it('descarta la respuesta en vuelo del usuario anterior', async () => {
+    const { apiRequest } = await import('../lib/api')
+    // Un resolver por llamada: el pedido del usuario 1 se responde recién
+    // después de que 2 inició sesión, y el de 2 queda colgado (tablet sin
+    // responder), que es el escenario donde la fuga era visible.
+    const resolvers = []
+    apiRequest.mockImplementation((endpoint) => {
+      if (endpoint === '/carreras') return Promise.resolve([])
+      if (endpoint === '/estados') return new Promise(r => resolvers.push(r))
+      return new Promise(() => {})
+    })
+
+    const { resultado, rerender, unmount } = renderHook(1)
+    // La sesión cambia mientras el GET /estados de 1 sigue viajando.
+    rerender(2)
+    await act(async () => {
+      resolvers[0]([{ materia_id: 10, estado: 'PROMOCIONADA' }])
+    })
+
+    expect(resultado.current.ctx.estadosMap).toEqual({})
+    expect(readCache('estados', 2)).not.toEqual({ 10: 'PROMOCIONADA' })
+
+    unmount()
+    apiRequest.mockImplementation(() => new Promise(() => {}))
+  })
+
   it('hidrata el snapshot propio de cada usuario', () => {
     writeCache('estados', 1, { 10: 'REGULAR' })
     writeCache('estados', 2, { 20: 'CURSANDO' })

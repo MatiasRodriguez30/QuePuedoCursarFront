@@ -151,12 +151,17 @@ export function useAppData(showToast, usuarioId) {
   // carreras: EstadoMateria vive ligado a la materia, no a una selección
   // puntual, así que no hace falta re-pedirlo al cambiar de carrera).
   const fetchInicial = useCallback(async () => {
-    if (!usuarioIdRef.current) { setLoading(false); return }
+    const pedidoPara = usuarioIdRef.current
+    if (!pedidoPara) { setLoading(false); return }
     try {
       const [cars, ests] = await Promise.all([
         apiRequest('/carreras'),
         apiRequest('/estados'),
       ])
+      // Si mientras viajaba la respuesta cambió la sesión, estos datos son
+      // del usuario anterior: aplicarlos se los mostraría (y se los
+      // guardaría en cache) al que está logueado ahora.
+      if (usuarioIdRef.current !== pedidoPara) return
       setCarreras(cars)
       const eMap = {}
       ests.forEach(e => { eMap[e.materia_id] = e.estado })
@@ -173,6 +178,7 @@ export function useAppData(showToast, usuarioId) {
         setLoading(false)
       }
     } catch (err) {
+      if (usuarioIdRef.current !== pedidoPara) return
       showToastRef.current?.('error', 'Error de Carga', 'No se pudo sincronizar con el servidor: ' + err.message)
       setLoading(false)
     }

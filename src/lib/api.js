@@ -202,9 +202,13 @@ export async function apiRequest(endpoint, options = {}) {
 
   if (!esGet || fetchOptions.signal) return ejecutar()
 
-  const enVuelo = inFlightGets.get(endpoint)
+  // La clave incluye el token: dos sesiones distintas pidiendo el mismo
+  // endpoint no son la misma request, y compartir la respuesta le entregaría
+  // al usuario entrante los datos del que acaba de cerrar sesión.
+  const clave = `${getToken() || 'anon'} ${endpoint}`
+  const enVuelo = inFlightGets.get(clave)
   if (enVuelo) return enVuelo
-  const promesa = ejecutar().finally(() => inFlightGets.delete(endpoint))
-  inFlightGets.set(endpoint, promesa)
+  const promesa = ejecutar().finally(() => inFlightGets.delete(clave))
+  inFlightGets.set(clave, promesa)
   return promesa
 }
