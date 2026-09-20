@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useDeferredValue, useMemo, useState } from 'react'
 import { Calendar, Check, CheckCircle, Clock, FileCheck, Hourglass, Loader, Lock, Search, SearchX, Sparkles, X } from 'lucide-react'
 import { checkCursadaRequirements, computeImpacto, computeImpactoCascada, proximaOportunidad } from '../lib/businessLogic'
 
@@ -14,6 +14,9 @@ const FILTERS = [
 export default function ConsultasTab({ ctx }) {
   const [filter, setFilter] = useState('todas')
   const [query, setQuery] = useState('')
+  // Filtrar y re-renderizar decenas de tarjetas es caro en un celular: se
+  // hace sobre el valor diferido para que el input siga respondiendo.
+  const queryDiferida = useDeferredValue(query)
 
   const items = useMemo(() => {
     return ctx.materias.map(m => {
@@ -27,29 +30,31 @@ export default function ConsultasTab({ ctx }) {
     })
   }, [ctx])
 
-  const counts = {
+  const counts = useMemo(() => ({
     todas: items.length,
     'puede-cursar': items.filter(i => i.estado === 'NO_CURSADA' && i.reqCheck.puede).length,
     'puede-rendir': items.filter(i => i.estado === 'REGULAR').length,
     cursando: items.filter(i => i.estado === 'CURSANDO').length,
     aprobadas: items.filter(i => i.estado === 'PROMOCIONADA').length,
     bloqueadas: items.filter(i => i.estado === 'NO_CURSADA' && !i.reqCheck.puede).length,
-  }
+  }), [items])
 
-  let filtered = items
-  if (filter === 'puede-cursar') filtered = filtered.filter(i => i.estado === 'NO_CURSADA' && i.reqCheck.puede)
-  else if (filter === 'puede-rendir') filtered = filtered.filter(i => i.estado === 'REGULAR')
-  else if (filter === 'cursando') filtered = filtered.filter(i => i.estado === 'CURSANDO')
-  else if (filter === 'aprobadas') filtered = filtered.filter(i => i.estado === 'PROMOCIONADA')
-  else if (filter === 'bloqueadas') filtered = filtered.filter(i => i.estado === 'NO_CURSADA' && !i.reqCheck.puede)
+  const filtered = useMemo(() => {
+    let resultado = items
+    if (filter === 'puede-cursar') resultado = resultado.filter(i => i.estado === 'NO_CURSADA' && i.reqCheck.puede)
+    else if (filter === 'puede-rendir') resultado = resultado.filter(i => i.estado === 'REGULAR')
+    else if (filter === 'cursando') resultado = resultado.filter(i => i.estado === 'CURSANDO')
+    else if (filter === 'aprobadas') resultado = resultado.filter(i => i.estado === 'PROMOCIONADA')
+    else if (filter === 'bloqueadas') resultado = resultado.filter(i => i.estado === 'NO_CURSADA' && !i.reqCheck.puede)
 
-  const q = query.toLowerCase().trim()
-  if (q) {
-    filtered = filtered.filter(i => i.materia.nombre.toLowerCase().includes(q) || i.materia.codigo.toLowerCase().includes(q))
-  }
+    const q = queryDiferida.toLowerCase().trim()
+    if (q) {
+      resultado = resultado.filter(i => i.materia.nombre.toLowerCase().includes(q) || i.materia.codigo.toLowerCase().includes(q))
+    }
+    return [...resultado].sort((a, b) => b.impacto - a.impacto)
+  }, [items, filter, queryDiferida])
 
-  filtered = [...filtered].sort((a, b) => b.impacto - a.impacto)
-  const maxImpacto = Math.max(0, ...filtered.map(i => i.impacto))
+  const maxImpacto = useMemo(() => filtered.reduce((max, i) => Math.max(max, i.impacto), 0), [filtered])
 
   return (
     <div className="space-y-6">
@@ -97,7 +102,7 @@ export default function ConsultasTab({ ctx }) {
   )
 }
 
-function ConsultaCard({ materia, estado, reqCheck, reqs, impacto, atraso, oportunidad, maxImpacto, estadosMap }) {
+const ConsultaCard = memo(function ConsultaCard({ materia, estado, reqCheck, reqs, impacto, atraso, oportunidad, maxImpacto, estadosMap }) {
   let cardBorder = 'border-slate-800'
   let statusBadge = null
   let actionBadge = null
@@ -176,7 +181,7 @@ function ConsultaCard({ materia, estado, reqCheck, reqs, impacto, atraso, oportu
       )}
     </div>
   )
-}
+})
 
 function ReqChip({ p, estadosMap }) {
   const reqEstado = estadosMap[p.materia_requerida_id] || 'NO_CURSADA'
