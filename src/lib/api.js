@@ -78,13 +78,74 @@ export function setToken(token) {
 let onUnauthorized = null
 export function setUnauthorizedHandler(fn) { onUnauthorized = fn }
 
-export async function apiRequest(endpoint, options = {}) {
+// ── Política de red ──────────────────────────────────────────────────────
+// El backend corre en una tablet (Termux + Cloudflare Tunnel): las requests
+// pueden colgarse indefinidamente cuando el dispositivo duerme o pierde
+// conectividad, y fallar de forma transitoria. Por eso todo pedido tiene
+// timeout, los GET se reintentan con backoff, y los GET idénticos que están
+// en vuelo al mismo tiempo comparten una sola respuesta.
+const DEFAULT_TIMEOUT_MS = 12000
+const GET_RETRIES = 2
+const RETRY_BASE_DELAY_MS = 600
+
+const inFlightGets = new Map()
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+
+class HttpError extends Error {
+  constructor(message, status) {
+    super(message)
+    this.name = 'HttpError'
+    this.status = status
+  }
+}
+
+/** Errores que tiene sentido reintentar: red caída o backend momentáneamente inestable. */
+function esReintentable(err) {
+  if (err.name === 'AbortError') return false
+  if (err instanceof HttpError) return err.status >= 500 || err.status === 429
+  return true // TypeError de fetch: la tablet no respondió
+}
+
+/**
+ * Combina el AbortSignal del llamador con el del timeout, para que cancele
+ * el que se dispare primero sin perder el motivo real de la cancelación.
+ */
+function withTimeout(externalSignal, timeoutMs) {
+  const controller = new AbortController()
+  const timer = setTimeout(
+    () => controller.abort(new Error('el servidor no respondió a tiempo')),
+    timeoutMs,
+  )
+  const onExternalAbort = () => controller.abort(externalSignal.reason)
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort(externalSignal.reason)
+    else externalSignal.addEventListener('abort', onExternalAbort, { once: true })
+  }
+  const cleanup = () => {
+    clearTimeout(timer)
+    externalSignal?.removeEventListener('abort', onExternalAbort)
+  }
+  return { signal: controller.signal, cleanup }
+}
+
+async function doRequest(endpoint, options, timeoutMs) {
   const defaultHeaders = { 'Content-Type': 'application/json' }
   const token = getToken()
   if (token) defaultHeaders['Authorization'] = `Bearer ${token}`
-  options.headers = { ...defaultHeaders, ...options.headers }
+  const { signal, cleanup } = withTimeout(options.signal, timeoutMs)
 
-  const res = await fetch(`${API_BASE}${endpoint}`, options)
+  let res
+  try {
+    res = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers: { ...defaultHeaders, ...options.headers },
+      signal,
+    })
+  } finally {
+    cleanup()
+  }
+
   if (res.status === 401) {
     setToken(null)
     onUnauthorized?.()
@@ -95,8 +156,39 @@ export async function apiRequest(endpoint, options = {}) {
       const errJson = await res.json()
       errDetail = errJson.detail || errDetail
     } catch (_) { /* noop */ }
-    throw new Error(errDetail)
+    throw new HttpError(errDetail, res.status)
   }
   if (res.status === 204) return null
   return res.json()
+}
+
+export async function apiRequest(endpoint, options = {}) {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, retries, ...fetchOptions } = options
+  const method = (fetchOptions.method || 'GET').toUpperCase()
+  // Sólo los GET son seguros de reintentar/deduplicar: repetir un POST/PUT
+  // podría duplicar escrituras en el backend.
+  const esGet = method === 'GET'
+  const intentos = (retries ?? (esGet ? GET_RETRIES : 0)) + 1
+
+  const ejecutar = async () => {
+    let ultimoError
+    for (let intento = 0; intento < intentos; intento++) {
+      try {
+        return await doRequest(endpoint, fetchOptions, timeoutMs)
+      } catch (err) {
+        ultimoError = err
+        if (intento === intentos - 1 || !esReintentable(err)) break
+        await sleep(RETRY_BASE_DELAY_MS * 2 ** intento)
+      }
+    }
+    throw ultimoError
+  }
+
+  if (!esGet || fetchOptions.signal) return ejecutar()
+
+  const enVuelo = inFlightGets.get(endpoint)
+  if (enVuelo) return enVuelo
+  const promesa = ejecutar().finally(() => inFlightGets.delete(endpoint))
+  inFlightGets.set(endpoint, promesa)
+  return promesa
 }

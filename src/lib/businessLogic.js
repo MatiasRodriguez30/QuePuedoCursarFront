@@ -79,10 +79,24 @@ export function computeCreditosElectivas(ctx) {
   })
 }
 
+// ── Índices de acceso directo ───────────────────────────────────────────
+// Los índices (`dependientesByMateria`, `materiasById`) se construyen una
+// vez por snapshot de datos en `buildIndexes`. Las funciones de abajo los
+// usan si están en el ctx y si no recorren las listas, para que el ctx
+// mínimo { materias, prerequisitos, estadosMap } siga siendo válido.
+function dependientesDe(ctx, materiaId) {
+  if (ctx.dependientesByMateria) return ctx.dependientesByMateria[materiaId] || []
+  return ctx.prerequisitos.filter(p => p.materia_requerida_id === materiaId)
+}
+
+function materiaPorId(ctx, id) {
+  if (ctx.materiasById) return ctx.materiasById.get(id)
+  return ctx.materias.find(m => m.id === id)
+}
+
 // Cuántas materias (aún no aprobadas) tienen a `materiaId` como requisito directo.
 export function computeImpacto(materiaId, ctx) {
-  return ctx.prerequisitos.filter(p => {
-    if (p.materia_requerida_id !== materiaId) return false
+  return dependientesDe(ctx, materiaId).filter(p => {
     const estadoDependiente = ctx.estadosMap[p.materia_id] || 'NO_CURSADA'
     return estadoDependiente !== 'PROMOCIONADA'
   }).length
@@ -96,8 +110,7 @@ export function computeImpactoCascada(materiaId, ctx) {
   const cola = [materiaId]
   while (cola.length) {
     const actual = cola.pop()
-    ctx.prerequisitos.forEach(p => {
-      if (p.materia_requerida_id !== actual) return
+    dependientesDe(ctx, actual).forEach(p => {
       const dependienteId = p.materia_id
       const estadoDependiente = ctx.estadosMap[dependienteId] || 'NO_CURSADA'
       if (estadoDependiente === 'PROMOCIONADA') return
@@ -106,7 +119,7 @@ export function computeImpactoCascada(materiaId, ctx) {
       cola.push(dependienteId)
     })
   }
-  const materiasBloqueadas = [...visitados].map(id => ctx.materias.find(m => m.id === id)).filter(Boolean).filter(m => !esElectiva(m))
+  const materiasBloqueadas = [...visitados].map(id => materiaPorId(ctx, id)).filter(Boolean).filter(m => !esElectiva(m))
   const horas = materiasBloqueadas.reduce((sum, m) => sum + (m.horas_semanales || 0), 0)
   return { cantidad: materiasBloqueadas.length, horas, materias: materiasBloqueadas }
 }
@@ -330,4 +343,18 @@ export function buildPrereqsMap(materias, prerequisitos) {
     map[p.materia_id].push(p)
   })
   return map
+}
+
+// Índices derivados de un snapshot de datos: evitan recorrer las listas
+// completas en cada consulta (la vista principal calcula impacto en cascada
+// para todas las materias, lo que sin índice es cuadrático).
+export function buildIndexes(materias, prerequisitos) {
+  const prereqsByMateria = buildPrereqsMap(materias, prerequisitos)
+  const dependientesByMateria = {}
+  prerequisitos.forEach(p => {
+    if (!dependientesByMateria[p.materia_requerida_id]) dependientesByMateria[p.materia_requerida_id] = []
+    dependientesByMateria[p.materia_requerida_id].push(p)
+  })
+  const materiasById = new Map(materias.map(m => [m.id, m]))
+  return { prereqsByMateria, dependientesByMateria, materiasById }
 }

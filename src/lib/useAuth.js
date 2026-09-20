@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiRequest, getToken, setToken, setUnauthorizedHandler } from './api'
+import { clearCache } from './cache'
 
 export function useAuth() {
   const [usuario, setUsuario] = useState(null)
@@ -43,6 +44,9 @@ export function useAuth() {
   const logout = useCallback(async () => {
     try { await apiRequest('/auth/logout', { method: 'POST' }) } catch (_) { /* noop */ }
     setToken(null)
+    // El snapshot cacheado es el avance académico del usuario que se va: no
+    // puede quedar disponible para el que inicie sesión después.
+    clearCache()
     setUsuario(null)
   }, [])
 

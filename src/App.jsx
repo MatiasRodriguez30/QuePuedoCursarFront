@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { GraduationCap } from 'lucide-react'
 import Header from './components/Header'
 import HeroMetrics from './components/HeroMetrics'
@@ -6,18 +6,22 @@ import ToastContainer from './components/ToastContainer'
 import ConfirmDialog from './components/ConfirmDialog'
 import LoginScreen from './components/LoginScreen'
 import ResetPasswordScreen from './components/ResetPasswordScreen'
-import AdminTab from './tabs/AdminTab'
-import AgendaTab from './tabs/AgendaTab'
 import ConsultasTab from './tabs/ConsultasTab'
-import EstadosTab from './tabs/EstadosTab'
-import PlanTab from './tabs/PlanTab'
-import RecomendacionesTab from './tabs/RecomendacionesTab'
-import RutaTab from './tabs/RutaTab'
 import { useAppData } from './lib/useAppData'
 import { useToasts } from './lib/useToasts'
 import { useConfirm } from './lib/useConfirm'
 import { useAuth } from './lib/useAuth'
 import { checkCursadaRequirements, checkExcepcionMachete, computeCondicionalidadCandidatos } from './lib/businessLogic'
+
+// Sólo la pestaña inicial entra en el bundle principal: el resto (incluido
+// todo el panel de admin, que la mayoría de los usuarios nunca abre) se
+// descarga recién al abrirla.
+const EstadosTab = lazy(() => import('./tabs/EstadosTab'))
+const PlanTab = lazy(() => import('./tabs/PlanTab'))
+const RecomendacionesTab = lazy(() => import('./tabs/RecomendacionesTab'))
+const RutaTab = lazy(() => import('./tabs/RutaTab'))
+const AgendaTab = lazy(() => import('./tabs/AgendaTab'))
+const AdminTab = lazy(() => import('./tabs/AdminTab'))
 
 export default function App() {
   const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get('reset'))
@@ -25,7 +29,7 @@ export default function App() {
   const { toasts, showToast, dismiss } = useToasts()
   const { confirmState, showConfirm, resolveConfirm } = useConfirm()
   const { usuario, checking, login, registrar, logout, esAdmin } = useAuth()
-  const { ctx, loading, wsStatus, setConfigApp, cargarEventos, carreraId, setCarreraId } = useAppData(showToast, usuario?.id)
+  const { ctx, loading, wsStatus, setConfigApp, cargarEventos, carreraId, setCarreraId, actualizarEstado } = useAppData(showToast, usuario?.id)
 
   const badgeDisponibles = useMemo(() => {
     return ctx.materias.filter(m => {
@@ -100,17 +104,28 @@ export default function App() {
       <main role="main" aria-label="Contenido principal" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         <HeroMetrics ctx={ctx} />
 
-        {currentTab === 'consultas' && <ConsultasTab ctx={ctx} />}
-        {currentTab === 'estados' && <EstadosTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} />}
-        {currentTab === 'plan' && <PlanTab ctx={ctx} />}
-        {currentTab === 'recomendaciones' && <RecomendacionesTab ctx={ctx} />}
-        {currentTab === 'ruta' && <RutaTab ctx={ctx} />}
-        {currentTab === 'agenda' && <AgendaTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} esAdmin={esAdmin} cargarEventos={cargarEventos} />}
-        {currentTab === 'admin' && esAdmin && <AdminTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} setConfigApp={setConfigApp} usuarioActualId={usuario.id} />}
+        <Suspense fallback={<TabFallback />}>
+          {currentTab === 'consultas' && <ConsultasTab ctx={ctx} />}
+          {currentTab === 'estados' && <EstadosTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} actualizarEstado={actualizarEstado} />}
+          {currentTab === 'plan' && <PlanTab ctx={ctx} />}
+          {currentTab === 'recomendaciones' && <RecomendacionesTab ctx={ctx} />}
+          {currentTab === 'ruta' && <RutaTab ctx={ctx} />}
+          {currentTab === 'agenda' && <AgendaTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} esAdmin={esAdmin} cargarEventos={cargarEventos} />}
+          {currentTab === 'admin' && esAdmin && <AdminTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} setConfigApp={setConfigApp} usuarioActualId={usuario.id} />}
+        </Suspense>
       </main>
 
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
       <ConfirmDialog state={confirmState} onResolve={resolveConfirm} />
+    </div>
+  )
+}
+
+function TabFallback() {
+  return (
+    <div className="py-16 flex items-center justify-center gap-2 text-xs text-slate-500">
+      <GraduationCap className="w-4 h-4 text-brand-400 animate-pulse" aria-hidden="true" />
+      Cargando sección...
     </div>
   )
 }

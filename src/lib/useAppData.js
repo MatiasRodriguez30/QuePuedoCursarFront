@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { apiRequest, getWsUrl } from './api'
-import { buildPrereqsMap, formatEstadoText } from './businessLogic'
+import { buildIndexes, formatEstadoText } from './businessLogic'
+import { readCache, writeCache } from './cache'
 
 const CARRERA_STORAGE_KEY = 'qpc_carrera_id'
 
@@ -23,15 +24,20 @@ function guardarCarreraSeleccionada(id) {
 // todavía. La carrera seleccionada (para ver su plan/materias/ruta) vive
 // acá mismo, porque cambiarla dispara un refetch de materias/prereqs/config.
 export function useAppData(showToast, usuarioId) {
+  const [carreraInicial] = useState(leerCarreraGuardada)
+  // Hidratación desde el último snapshot cacheado: la app se pinta con datos
+  // reales en el primer frame y el fetch pasa a ser una revalidación en
+  // segundo plano, en vez de una pantalla de carga bloqueante contra un
+  // backend que puede tardar segundos en despertar.
   const [carreras, setCarreras] = useState([])
-  const [carreraId, setCarreraIdState] = useState(leerCarreraGuardada)
-  const [materias, setMaterias] = useState([])
+  const [carreraId, setCarreraIdState] = useState(carreraInicial)
+  const [materias, setMaterias] = useState(() => readCache('materias', carreraInicial) || [])
   const [estadosMap, setEstadosMap] = useState({})
-  const [prerequisitos, setPrerequisitos] = useState([])
-  const [configApp, setConfigApp] = useState({ anio_actual: null, cuatrimestre_actual: null })
+  const [prerequisitos, setPrerequisitos] = useState(() => readCache('prereqs', carreraInicial) || [])
+  const [configApp, setConfigApp] = useState(() => readCache('config', carreraInicial) || { anio_actual: null, cuatrimestre_actual: null })
   const [eventos, setEventos] = useState([])
   const [wsStatus, setWsStatus] = useState('connecting') // connecting | connected | disconnected
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !(readCache('materias', carreraInicial)?.length))
   const usuarioIdRef = useRef(usuarioId)
   usuarioIdRef.current = usuarioId
   const carreraIdRef = useRef(carreraId)
@@ -40,6 +46,8 @@ export function useAppData(showToast, usuarioId) {
   materiasRef.current = materias
   const carrerasRef = useRef(carreras)
   carrerasRef.current = carreras
+  const estadosMapRef = useRef(estadosMap)
+  estadosMapRef.current = estadosMap
 
   const wsRef = useRef(null)
   const pingIntervalRef = useRef(null)
@@ -50,9 +58,19 @@ export function useAppData(showToast, usuarioId) {
   // va a traer solo cuando el usuario navegue a ese mes).
   const rangoEventosRef = useRef({ desde: null, hasta: null })
 
-  const prereqsByMateria = buildPrereqsMap(materias, prerequisitos)
-  const carreraActual = carreras.find(c => c.id === carreraId) || null
-  const ctx = { carreras, carreraActual, materias, estadosMap, prerequisitos, prereqsByMateria, configApp, eventos }
+  // `ctx` se reconstruye sólo cuando cambian los datos, no en cada render:
+  // es la dependencia de todos los useMemo de las pestañas (cálculo de
+  // correlatividades, camino óptimo), así que una identidad nueva por
+  // render recalculaba todo el plan de estudios al tipear en un buscador.
+  const { prereqsByMateria, dependientesByMateria, materiasById } = useMemo(
+    () => buildIndexes(materias, prerequisitos),
+    [materias, prerequisitos],
+  )
+  const carreraActual = useMemo(() => carreras.find(c => c.id === carreraId) || null, [carreras, carreraId])
+  const ctx = useMemo(
+    () => ({ carreras, carreraActual, materias, estadosMap, prerequisitos, prereqsByMateria, dependientesByMateria, materiasById, configApp, eventos }),
+    [carreras, carreraActual, materias, estadosMap, prerequisitos, prereqsByMateria, dependientesByMateria, materiasById, configApp, eventos],
+  )
 
   const setCarreraId = useCallback((id) => {
     guardarCarreraSeleccionada(id)
@@ -72,6 +90,27 @@ export function useAppData(showToast, usuarioId) {
       setEventos(data)
     } catch (err) {
       showToastRef.current?.('error', 'Error de Carga', 'No se pudo cargar la agenda: ' + err.message)
+    }
+  }, [])
+
+  // Update optimista: la UI cambia en el acto y el PUT viaja en segundo
+  // plano. Antes había que esperar el ida y vuelta + el eco del WebSocket
+  // contra un backend en una tablet, con lo cual el botón parecía muerto
+  // durante un par de segundos. Si el server rechaza, se revierte.
+  const actualizarEstado = useCallback(async (materiaId, nuevoEstado) => {
+    const anterior = estadosMapRef.current[materiaId]
+    if (anterior === nuevoEstado) return
+    setEstadosMap(prev => ({ ...prev, [materiaId]: nuevoEstado }))
+    try {
+      await apiRequest(`/estados/${materiaId}`, { method: 'PUT', body: JSON.stringify({ estado: nuevoEstado }) })
+    } catch (err) {
+      setEstadosMap(prev => {
+        const revertido = { ...prev }
+        if (anterior === undefined) delete revertido[materiaId]
+        else revertido[materiaId] = anterior
+        return revertido
+      })
+      showToastRef.current?.('error', 'Error', 'No se pudo actualizar el estado: ' + err.message)
     }
   }, [])
 
@@ -113,33 +152,78 @@ export function useAppData(showToast, usuarioId) {
   }, [setCarreraId])
 
   useEffect(() => {
+    if (!usuarioId) return
+    // Carreras y progreso son por usuario: sólo se pueden hidratar del
+    // cache una vez que se sabe quién inició sesión.
+    const carrerasCache = readCache('carreras', usuarioId)
+    const estadosCache = readCache('estados', usuarioId)
+    if (carrerasCache?.length) setCarreras(carrerasCache)
+    if (estadosCache) setEstadosMap(estadosCache)
+  }, [usuarioId])
+
+  useEffect(() => {
     fetchInicial()
   }, [fetchInicial, usuarioId])
 
+  // Persistencia del snapshot: se guarda el estado ya aplicado (venga de un
+  // fetch, del WebSocket o de un update optimista), no cada respuesta suelta.
+  useEffect(() => {
+    if (usuarioId && carreras.length) writeCache('carreras', usuarioId, carreras)
+  }, [carreras, usuarioId])
+
+  useEffect(() => {
+    if (usuarioId && Object.keys(estadosMap).length) writeCache('estados', usuarioId, estadosMap)
+  }, [estadosMap, usuarioId])
+
+  useEffect(() => {
+    if (carreraId && materias.length) {
+      writeCache('materias', carreraId, materias)
+      writeCache('prereqs', carreraId, prerequisitos)
+      writeCache('config', carreraId, configApp)
+    }
+  }, [carreraId, materias, prerequisitos, configApp])
+
   // Materias/prerequisitos/config son propios de la carrera seleccionada:
   // se recargan cada vez que cambia.
-  const fetchCarrera = useCallback(async (id) => {
+  const fetchCarrera = useCallback(async (id, signal) => {
     if (!id) { setLoading(false); return }
     try {
       const [mats, prereqs, cfg] = await Promise.all([
-        apiRequest(`/materias?carrera_id=${id}`),
-        apiRequest(`/prerequisitos?carrera_id=${id}`),
-        apiRequest(`/config?carrera_id=${id}`).catch(() => ({ carrera_id: id, anio_actual: null, cuatrimestre_actual: null })),
+        apiRequest(`/materias?carrera_id=${id}`, { signal }),
+        apiRequest(`/prerequisitos?carrera_id=${id}`, { signal }),
+        apiRequest(`/config?carrera_id=${id}`, { signal }).catch(() => ({ carrera_id: id, anio_actual: null, cuatrimestre_actual: null })),
       ])
+      if (signal?.aborted) return
       setMaterias(mats)
       setPrerequisitos(prereqs)
       setConfigApp(cfg)
     } catch (err) {
+      if (signal?.aborted || err.name === 'AbortError') return
       showToastRef.current?.('error', 'Error de Carga', 'No se pudo cargar el plan de la carrera: ' + err.message)
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
     if (!carreraId) return
-    setLoading(true)
-    fetchCarrera(carreraId)
+    // Si hay snapshot cacheado de esta carrera se muestra ya mismo y la red
+    // revalida sin tapar la app con el loader.
+    const cacheados = readCache('materias', carreraId)
+    if (cacheados?.length) {
+      setMaterias(cacheados)
+      setPrerequisitos(readCache('prereqs', carreraId) || [])
+      const cfg = readCache('config', carreraId)
+      if (cfg) setConfigApp(cfg)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
+    // Cambiar de carrera cancela el fetch anterior: sin esto, la respuesta
+    // lenta de la carrera vieja podía pisar a la nueva.
+    const controller = new AbortController()
+    fetchCarrera(carreraId, controller.signal)
+    return () => controller.abort()
   }, [carreraId, fetchCarrera])
 
   // ── WebSocket ────────────────────────────────────────────────────────
@@ -320,6 +404,7 @@ export function useAppData(showToast, usuarioId) {
     setEstadosMap,
     setConfigApp,
     refetch: fetchInicial,
+    actualizarEstado,
     cargarEventos,
     carreraId,
     setCarreraId,

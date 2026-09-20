@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useDeferredValue, useMemo, useState } from 'react'
 import { Inbox, RotateCcw, Search, Sliders } from 'lucide-react'
 import { apiRequest } from '../lib/api'
 
@@ -9,20 +9,17 @@ const ESTADOS = [
   { value: 'PROMOCIONADA', label: 'Aprobada' },
 ]
 
-export default function EstadosTab({ ctx, showToast, showConfirm }) {
+export default function EstadosTab({ ctx, showToast, showConfirm, actualizarEstado }) {
   const [query, setQuery] = useState('')
+  // El filtrado de la lista completa se hace sobre el valor diferido: tipear
+  // no bloquea el input aunque re-renderizar las tarjetas tarde.
+  const queryDiferida = useDeferredValue(query)
 
-  let list = ctx.materias
-  const q = query.toLowerCase().trim()
-  if (q) list = list.filter(m => m.nombre.toLowerCase().includes(q) || m.codigo.toLowerCase().includes(q))
-
-  async function setEstado(materiaId, nuevoEstado) {
-    try {
-      await apiRequest(`/estados/${materiaId}`, { method: 'PUT', body: JSON.stringify({ estado: nuevoEstado }) })
-    } catch (err) {
-      showToast('error', 'Error', 'No se pudo actualizar el estado: ' + err.message)
-    }
-  }
+  const list = useMemo(() => {
+    const q = queryDiferida.toLowerCase().trim()
+    if (!q) return ctx.materias
+    return ctx.materias.filter(m => m.nombre.toLowerCase().includes(q) || m.codigo.toLowerCase().includes(q))
+  }, [ctx.materias, queryDiferida])
 
   async function handleReset() {
     const ok = await showConfirm(
@@ -78,49 +75,61 @@ export default function EstadosTab({ ctx, showToast, showConfirm }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {list.map(m => {
-            const est = ctx.estadosMap[m.id] || 'NO_CURSADA'
-            return (
-              <div key={m.id} className="glass-card rounded-xl p-4 border border-slate-800/90 flex flex-col justify-between gap-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-mono text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">{m.codigo}</span>
-                    <span className="text-xs text-slate-400">{m.anio ? `Año ${m.anio}` : ''} {m.cuatrimestre ? `(${m.cuatrimestre}°C)` : ''}</span>
-                  </div>
-                  <h4 className="text-sm font-bold text-white leading-snug">{m.nombre}</h4>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
-                  {ESTADOS.map(({ value, label }) => {
-                    const active = est === value
-                    const activeCls = {
-                      NO_CURSADA: 'bg-slate-700 text-white shadow-sm',
-                      CURSANDO: 'bg-sky-500 text-slate-950 font-bold shadow-md shadow-sky-500/20',
-                      REGULAR: 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20',
-                      PROMOCIONADA: 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20',
-                    }[value]
-                    const hoverCls = {
-                      NO_CURSADA: 'hover:text-slate-200',
-                      CURSANDO: 'hover:text-sky-300',
-                      REGULAR: 'hover:text-amber-300',
-                      PROMOCIONADA: 'hover:text-emerald-300',
-                    }[value]
-                    return (
-                      <button
-                        key={value}
-                        onClick={() => setEstado(m.id, value)}
-                        className={`py-1.5 px-1.5 rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1 transition-all ${active ? activeCls : `text-slate-400 ${hoverCls}`}`}
-                      >
-                        <span>{label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
+          {list.map(m => (
+            <MateriaEstadoCard
+              key={m.id}
+              materia={m}
+              estado={ctx.estadosMap[m.id] || 'NO_CURSADA'}
+              onSetEstado={actualizarEstado}
+            />
+          ))}
         </div>
       )}
     </div>
   )
+}
+
+// Memoizada: cambiar el estado de una materia no debe re-renderizar las
+// tarjetas de todas las demás (el plan puede tener más de 40).
+const MateriaEstadoCard = memo(function MateriaEstadoCard({ materia, estado, onSetEstado }) {
+  return (
+    <div className="glass-card rounded-xl p-4 border border-slate-800/90 flex flex-col justify-between gap-3">
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="font-mono text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">{materia.codigo}</span>
+          <span className="text-xs text-slate-400">{materia.anio ? `Año ${materia.anio}` : ''} {materia.cuatrimestre ? `(${materia.cuatrimestre}°C)` : ''}</span>
+        </div>
+        <h4 className="text-sm font-bold text-white leading-snug">{materia.nombre}</h4>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+        {ESTADOS.map(({ value, label }) => {
+          const active = estado === value
+          return (
+            <button
+              key={value}
+              onClick={() => onSetEstado(materia.id, value)}
+              className={`py-1.5 px-1.5 rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1 transition-all ${active ? CLASES_ACTIVAS[value] : `text-slate-400 ${CLASES_HOVER[value]}`}`}
+            >
+              <span>{label}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+})
+
+const CLASES_ACTIVAS = {
+  NO_CURSADA: 'bg-slate-700 text-white shadow-sm',
+  CURSANDO: 'bg-sky-500 text-slate-950 font-bold shadow-md shadow-sky-500/20',
+  REGULAR: 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20',
+  PROMOCIONADA: 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20',
+}
+
+const CLASES_HOVER = {
+  NO_CURSADA: 'hover:text-slate-200',
+  CURSANDO: 'hover:text-sky-300',
+  REGULAR: 'hover:text-amber-300',
+  PROMOCIONADA: 'hover:text-emerald-300',
 }
