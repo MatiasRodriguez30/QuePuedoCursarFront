@@ -13,12 +13,12 @@ export default function AdminConfigPanel({ ctx, showToast, setConfigApp }) {
   }, [ctx.configApp.anio_actual, ctx.configApp.cuatrimestre_actual])
 
   if (!ctx.carreraActual) {
-    return <p className="text-xs text-slate-500 italic py-8 text-center">Elegí una carrera arriba para configurar su período actual.</p>
+    return <p className="text-xs text-[#57534e] italic py-8 text-center">Elegí una carrera arriba para configurar su período actual.</p>
   }
 
   const periodo = getPeriodoActual(ctx.configApp)
   const periodoTexto = ctx.configApp.anio_actual && ctx.configApp.cuatrimestre_actual
-    ? `✓ Configurado manualmente: ${periodo.cuatrimestre}° cuatrimestre ${periodo.anio}`
+    ? `Configurado manualmente: ${periodo.cuatrimestre}° cuatrimestre ${periodo.anio}`
     : `Sin configurar — usando fecha del dispositivo: ${periodo.cuatrimestre || 'receso'}° cuatrimestre ${periodo.anio}`
 
   async function guardarPeriodo() {
@@ -28,7 +28,10 @@ export default function AdminConfigPanel({ ctx, showToast, setConfigApp }) {
       return
     }
     try {
-      const cfg = await apiRequest(`/config?carrera_id=${ctx.carreraActual.id}`, { method: 'PUT', body: JSON.stringify({ anio_actual: anio, cuatrimestre_actual: cuatSel }) })
+      const cfg = await apiRequest(`/config?carrera_id=${ctx.carreraActual.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ anio_actual: anio, cuatrimestre_actual: cuatSel }),
+      })
       setConfigApp(cfg)
       showToast('success', 'Período Guardado', 'La ruta sugerida ya usa el momento actual')
     } catch (err) {
@@ -39,7 +42,10 @@ export default function AdminConfigPanel({ ctx, showToast, setConfigApp }) {
   async function limpiarPeriodo() {
     try {
       setCuatSel(null)
-      const cfg = await apiRequest(`/config?carrera_id=${ctx.carreraActual.id}`, { method: 'PUT', body: JSON.stringify({ anio_actual: null, cuatrimestre_actual: null }) })
+      const cfg = await apiRequest(`/config?carrera_id=${ctx.carreraActual.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ anio_actual: null, cuatrimestre_actual: null }),
+      })
       setConfigApp(cfg)
       showToast('info', 'Período Automático', 'Volviendo a estimar por fecha del dispositivo')
     } catch (err) {
@@ -50,33 +56,63 @@ export default function AdminConfigPanel({ ctx, showToast, setConfigApp }) {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-brand-400" />
+        <h3 className="text-sm font-bold text-[#1a1916] flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-orange-700" />
           Período Actual — {ctx.carreraActual.nombre}
         </h3>
-        <p className="text-xs text-slate-400 mt-1">Definilo para que el "Camino Óptimo" y las próximas oportunidades sean exactas para esta carrera. Si lo dejás vacío, el sistema estima el cuatrimestre con la fecha del dispositivo.</p>
+        <p className="text-xs text-[#57534e] mt-1 leading-relaxed">
+          Definilo para que el "Camino Óptimo" y las próximas fechas de cursada sean exactas para esta carrera. Si lo dejás vacío, el sistema calcula el cuatrimestre con la fecha de la tablet/celular.
+        </p>
       </div>
-      <div className="flex flex-wrap items-end gap-3">
+
+      <div className="flex flex-wrap items-end gap-3 pt-2">
         <div>
-          <label className="block text-[11px] font-semibold text-slate-400 mb-1">Año calendario</label>
-          <input type="number" value={anioInput} onChange={e => setAnioInput(e.target.value)} placeholder="Ej: 2026"
-            className="w-28 bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500" />
+          <label className="block text-xs font-bold text-[#44403c] mb-1">Año calendario</label>
+          <input
+            type="number"
+            value={anioInput}
+            onChange={e => setAnioInput(e.target.value)}
+            placeholder="Ej: 2026"
+            className="w-28 bg-white border-2 border-[#78716c] rounded-xl px-3 py-2 text-xs text-[#1a1916] placeholder-[#78716c] focus:outline-none focus:border-orange-600 min-h-[44px]"
+          />
         </div>
+
         <div>
-          <label className="block text-[11px] font-semibold text-slate-400 mb-1">Cuatrimestre</label>
-          <div className="flex gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+          <label className="block text-xs font-bold text-[#44403c] mb-1">Cuatrimestre</label>
+          <div className="flex gap-1.5 bg-[#f4efe6] p-1 rounded-xl border border-[#d6cebf]">
             {[1, 2].map(n => (
-              <button key={n} type="button" onClick={() => setCuatSel(n)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${cuatSel === n ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
+              <button
+                key={n}
+                type="button"
+                onClick={() => setCuatSel(n)}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all min-h-[38px] ${
+                  cuatSel === n
+                    ? 'bg-orange-700 text-white shadow-xs'
+                    : 'text-[#57534e] hover:text-[#1a1916] hover:bg-white'
+                }`}
+              >
                 {n}°
               </button>
             ))}
           </div>
         </div>
-        <button onClick={guardarPeriodo} className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-brand-500/25 transition-all">Guardar</button>
-        <button onClick={limpiarPeriodo} className="px-3 py-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors">Usar fecha automática</button>
+
+        <button
+          onClick={guardarPeriodo}
+          className="px-4 py-2 bg-orange-700 hover:bg-orange-800 text-white rounded-xl text-xs font-bold shadow-xs transition-colors min-h-[44px]"
+        >
+          Guardar Período
+        </button>
+
+        <button
+          onClick={limpiarPeriodo}
+          className="px-3.5 py-2 text-xs font-bold text-[#57534e] hover:text-[#1a1916] hover:bg-[#f4efe6] rounded-xl border border-[#d6cebf] transition-colors min-h-[44px]"
+        >
+          Usar fecha automática
+        </button>
       </div>
-      <p className="text-xs text-slate-400">{periodoTexto}</p>
+
+      <p className="text-xs text-[#57534e] font-medium pt-1">{periodoTexto}</p>
     </div>
   )
 }

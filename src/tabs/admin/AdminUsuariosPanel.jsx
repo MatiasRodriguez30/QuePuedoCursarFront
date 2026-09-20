@@ -3,8 +3,8 @@ import { Shield, User, Users } from 'lucide-react'
 import { apiRequest } from '../../lib/api'
 
 export default function AdminUsuariosPanel({ showToast, usuarioActualId }) {
-  const [usuarios, setUsuarios] = useState(null) // null = cargando
-  const [cambiando, setCambiando] = useState(null) // id del usuario cuyo rol se está guardando
+  const [usuarios, setUsuarios] = useState(null)
+  const [cambiando, setCambiando] = useState(null)
 
   useEffect(() => {
     apiRequest('/usuarios')
@@ -17,7 +17,10 @@ export default function AdminUsuariosPanel({ showToast, usuarioActualId }) {
     if (nuevoRol === usuario.rol) return
     setCambiando(usuario.id)
     try {
-      const actualizado = await apiRequest(`/usuarios/${usuario.id}/rol`, { method: 'PUT', body: JSON.stringify({ rol: nuevoRol }) })
+      const actualizado = await apiRequest(`/usuarios/${usuario.id}/rol`, {
+        method: 'PUT',
+        body: JSON.stringify({ rol: nuevoRol }),
+      })
       setUsuarios(prev => prev.map(u => u.id === usuario.id ? actualizado : u))
       showToast('success', 'Rol Actualizado', `${usuario.email} ahora es ${nuevoRol === 'ADMIN' ? 'Administrador' : 'Usuario'}`)
     } catch (err) {
@@ -30,37 +33,59 @@ export default function AdminUsuariosPanel({ showToast, usuarioActualId }) {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
-          <Users className="w-4 h-4 text-brand-400" />
-          Usuarios
+        <h3 className="text-sm font-bold text-[#1a1916] flex items-center gap-2">
+          <Users className="w-4 h-4 text-orange-700" />
+          Usuarios Registrados
         </h3>
-        <p className="text-xs text-slate-400 mt-1">Quién tiene cuenta en la app y qué rol tiene. Sólo un ADMIN puede editar materias, correlatividades, carreras y período actual.</p>
+        <p className="text-xs text-[#57534e] mt-1">
+          Cuentas registradas y permisos de administración. Sólo un ADMIN puede editar materias, correlatividades, carreras y fechas.
+        </p>
       </div>
 
       {usuarios === null ? (
-        <p className="text-xs text-slate-500 italic py-6 text-center">Cargando...</p>
+        <p className="text-xs text-[#57534e] italic py-6 text-center">Cargando usuarios...</p>
       ) : usuarios.length === 0 ? (
-        <p className="text-xs text-slate-500 italic py-6 text-center">Todavía no hay usuarios registrados.</p>
+        <p className="text-xs text-[#57534e] italic py-6 text-center">Todavía no hay usuarios registrados.</p>
       ) : (
         <div className="space-y-2">
           {usuarios.map(u => (
-            <div key={u.id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-900/80 border border-slate-800/80">
+            <div
+              key={u.id}
+              className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white border border-[#e2dcce]"
+            >
               <div className="flex items-center gap-2.5 min-w-0">
-                {u.rol === 'ADMIN' ? <Shield className="w-4 h-4 text-amber-400 flex-shrink-0" /> : <User className="w-4 h-4 text-slate-500 flex-shrink-0" />}
+                <div className="p-1.5 rounded-lg bg-[#f4efe6] text-[#44403c] flex-shrink-0">
+                  {u.rol === 'ADMIN' ? (
+                    <Shield className="w-4 h-4 text-orange-700" />
+                  ) : (
+                    <User className="w-4 h-4 text-[#78716c]" />
+                  )}
+                </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-white truncate">{u.email}{u.id === usuarioActualId && <span className="text-slate-500 font-normal"> (vos)</span>}</p>
-                  <p className="text-[10px] text-slate-500">Registrado el {new Date(u.creado_en).toLocaleDateString('es-AR')}</p>
+                  <p className="text-xs font-bold text-[#1a1916] truncate">
+                    {u.email}
+                    {u.id === usuarioActualId && <span className="text-[#78716c] font-normal"> (vos)</span>}
+                  </p>
+                  <p className="text-[11px] text-[#78716c]">
+                    Registrado el {new Date(u.creado_en).toLocaleDateString('es-AR')}
+                  </p>
                 </div>
               </div>
-              <div className="flex gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 flex-shrink-0">
+              <div className="flex gap-1 bg-[#f4efe6] p-1 rounded-lg border border-[#d6cebf] flex-shrink-0">
                 {['USER', 'ADMIN'].map(rol => (
                   <button
                     key={rol}
                     disabled={cambiando === u.id || (u.id === usuarioActualId && u.rol === 'ADMIN' && rol === 'USER')}
                     onClick={() => cambiarRol(u, rol)}
-                    title={u.id === usuarioActualId && u.rol === 'ADMIN' && rol === 'USER' ? 'No podés quitarte el rol de administrador a vos mismo' : undefined}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                      u.rol === rol ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                    title={
+                      u.id === usuarioActualId && u.rol === 'ADMIN' && rol === 'USER'
+                        ? 'No podés quitarte el rol de administrador a vos mismo'
+                        : undefined
+                    }
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed min-h-[36px] ${
+                      u.rol === rol
+                        ? 'bg-orange-700 text-white shadow-2xs'
+                        : 'text-[#57534e] hover:text-[#1a1916]'
                     }`}
                   >
                     {rol === 'ADMIN' ? 'Admin' : 'Usuario'}
