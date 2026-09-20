@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { Award } from 'lucide-react'
+import { Award, BookOpen, CheckCircle2, Clock, Compass, Loader2 } from 'lucide-react'
 import { checkCursadaRequirements, esElectiva } from '../lib/businessLogic'
 
 /** Anima un número del 0 al valor `target` usando requestAnimationFrame. */
-function useCountUp(target, duration = 800) {
+function useCountUp(target, duration = 650) {
   const [value, setValue] = useState(0)
   const raf = useRef(null)
   const prev = useRef(target)
 
   useEffect(() => {
-    // Si el target no cambió no re-animamos
     if (prev.current === target && value !== 0) return
     prev.current = target
     const start = performance.now()
@@ -18,7 +17,6 @@ function useCountUp(target, duration = 800) {
     function step(now) {
       const elapsed = now - start
       const progress = Math.min(elapsed / duration, 1)
-      // Ease-out cubic
       const eased = 1 - Math.pow(1 - progress, 3)
       setValue(Math.round(from + (target - from) * eased))
       if (progress < 1) raf.current = requestAnimationFrame(step)
@@ -27,25 +25,15 @@ function useCountUp(target, duration = 800) {
     if (raf.current) cancelAnimationFrame(raf.current)
     raf.current = requestAnimationFrame(step)
     return () => { if (raf.current) cancelAnimationFrame(raf.current) }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, duration])
 
   return value
 }
 
-/** Calcula el color del gradiente de la barra de aprobadas según porcentaje. */
-function progressBarColor(pct) {
-  if (pct < 30) return 'from-rose-500 to-orange-400'
-  if (pct < 60) return 'from-amber-400 to-yellow-300'
-  return 'from-emerald-500 to-teal-400'
-}
-
 export default function HeroMetrics({ ctx }) {
   const { estadosMap } = ctx
-  // El plan no exige cursar TODAS las electivas cargadas (son ejemplos de un
-  // pool, ver esElectiva en businessLogic.js), sólo acumular horas por nivel
-  // — así que no cuentan para el avance general de la carrera, igual que en
-  // el Camino Óptimo. Su progreso propio se ve en "Créditos de Electivas".
+  // Las electivas (código "E-") no cuentan en el avance general de la carrera
+  // (ver esElectiva en businessLogic.js). Se contabilizan por separado en RutaTab.
   const materias = ctx.materias.filter(m => !esElectiva(m))
   const total = materias.length
   let countPromo = 0, countReg = 0, countCursando = 0, countDisponibles = 0
@@ -61,7 +49,6 @@ export default function HeroMetrics({ ctx }) {
   const pct = total > 0 ? Math.round((countPromo / total) * 100) : 0
   const pctOf = (n) => total > 0 ? (n / total) * 100 : 0
 
-  // Números animados
   const animPromo = useCountUp(countPromo)
   const animReg = useCountUp(countReg)
   const animCursando = useCountUp(countCursando)
@@ -69,80 +56,152 @@ export default function HeroMetrics({ ctx }) {
   const animTotal = useCountUp(total)
   const animPct = useCountUp(pct)
 
-  const metrics = [
-    ['Aprobadas',        animPromo,       countPromo,       'text-emerald-400'],
-    ['Regulares',        animReg,         countReg,         'text-amber-400'],
-    ['Cursando',         animCursando,    countCursando,    'text-sky-400'],
-    ['Disponibles',      animDisponibles, countDisponibles, 'text-brand-400'],
-    ['Total Materias',   animTotal,       total,            'text-slate-200'],
-  ]
-
   return (
     <section
       aria-label="Resumen de avance de carrera"
-      className="glass-panel rounded-2xl p-4 sm:p-6 shadow-xl border border-slate-800/80 relative overflow-hidden"
+      className="notebook-panel rounded-2xl p-4 sm:p-5 border border-[#e2dcce] bg-white shadow-xs"
     >
-      <div className="absolute -right-20 -top-20 w-72 h-72 bg-brand-600/10 rounded-full blur-3xl pointer-events-none" aria-hidden="true" />
-      <div className="absolute -left-20 -bottom-20 w-72 h-72 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" aria-hidden="true" />
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-5">
+        {/* Barra de progreso e indicadores */}
+        <div className="space-y-2.5 flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-orange-100 text-orange-800 border border-orange-200">
+                <Award className="w-4 h-4" aria-hidden="true" />
+              </span>
+              <div>
+                <span className="text-xs uppercase font-bold tracking-wider text-[#57534e] block">
+                  Avance de Carrera
+                </span>
+                <span className="text-[11px] text-[#78716c] font-medium hidden sm:inline">
+                  {countPromo} de {total} materias aprobadas
+                </span>
+              </div>
+            </div>
 
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
-        {/* Barra de progreso */}
-        <div className="space-y-2 flex-1 w-full">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1.5">
-              <Award className="w-3.5 h-3.5 text-brand-400" aria-hidden="true" />
-              Avance de Carrera
-            </span>
-            <span className="text-sm font-mono font-bold text-white" aria-label={`${animPct} por ciento aprobado`}>
-              {animPct}%
-            </span>
+            <div className="flex items-baseline gap-1" aria-label={`${animPct} por ciento aprobado`}>
+              <span className="text-2xl sm:text-3xl font-mono font-extrabold text-[#1a1916] tracking-tight">
+                {animPct}%
+              </span>
+            </div>
           </div>
 
-          {/* Barra de progreso principal — aprobadas con gradiente dinámico */}
+          {/* Barra de progreso principal estilo regla */}
           <div
             role="progressbar"
             aria-valuenow={pct}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-label="Porcentaje de materias aprobadas"
-            className="w-full h-3 bg-slate-900/90 rounded-full overflow-hidden border border-slate-800"
+            className="w-full h-3 bg-[#f4efe6] rounded-full overflow-hidden border border-[#d6cebf] relative"
           >
             <div
               style={{ width: `${pct}%` }}
-              className={`h-full bg-gradient-to-r ${progressBarColor(pct)} rounded-full transition-all duration-700`}
+              className="h-full bg-emerald-600 rounded-full transition-all duration-700"
             />
           </div>
 
-          {/* Barra compuesta con segmentos de color por estado */}
-          <div className="w-full h-1.5 bg-slate-900/90 rounded-full overflow-hidden flex p-0 border border-slate-800/60 gap-0.5 mt-1">
-            <div style={{ width: `${pctOf(countPromo)}%` }} className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-l-full transition-all duration-500" title="Aprobadas" />
-            <div style={{ width: `${pctOf(countReg)}%` }} className="h-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-500" title="Regulares" />
-            <div style={{ width: `${pctOf(countCursando)}%` }} className="h-full bg-gradient-to-r from-sky-400 to-sky-500 transition-all duration-500" title="Cursando" />
-            <div style={{ width: `${pctOf(countDisponibles)}%` }} className="h-full bg-gradient-to-r from-brand-500 to-indigo-500 transition-all duration-500" title="Disponibles para cursar" />
+          {/* Barra segmentada por condición */}
+          <div className="w-full h-2 bg-[#f4efe6] rounded-full overflow-hidden flex border border-[#e2dcce] gap-0.5">
+            <div
+              style={{ width: `${pctOf(countPromo)}%` }}
+              className="h-full bg-emerald-600 rounded-l-full transition-all duration-500"
+              title={`Aprobadas: ${countPromo}`}
+            />
+            <div
+              style={{ width: `${pctOf(countReg)}%` }}
+              className="h-full bg-amber-500 transition-all duration-500"
+              title={`Regulares: ${countReg}`}
+            />
+            <div
+              style={{ width: `${pctOf(countCursando)}%` }}
+              className="h-full bg-sky-500 transition-all duration-500"
+              title={`Cursando: ${countCursando}`}
+            />
+            <div
+              style={{ width: `${pctOf(countDisponibles)}%` }}
+              className="h-full bg-orange-500 transition-all duration-500"
+              title={`Disponibles para cursar: ${countDisponibles}`}
+            />
           </div>
 
-          <p className="text-xs text-slate-400 flex items-center gap-3 pt-1 flex-wrap">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" aria-hidden="true" /> Aprobadas</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" aria-hidden="true" /> Regulares</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-sky-400 inline-block" aria-hidden="true" /> Cursando</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-brand-400 inline-block" aria-hidden="true" /> Disponibles para cursar</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-600 inline-block" aria-hidden="true" /> Bloqueadas</span>
+          {/* Referencias al pie de la barra */}
+          <p className="text-[11px] text-[#57534e] flex items-center gap-x-3.5 gap-y-1 pt-0.5 flex-wrap font-medium">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-xs bg-emerald-600 inline-block border border-emerald-800" aria-hidden="true" />
+              Aprobadas
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-xs bg-amber-500 inline-block border border-amber-700" aria-hidden="true" />
+              Regulares
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-xs bg-sky-500 inline-block border border-sky-700" aria-hidden="true" />
+              Cursando
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-xs bg-orange-500 inline-block border border-orange-700" aria-hidden="true" />
+              Disponibles
+            </span>
           </p>
         </div>
 
-        {/* Tarjetas de métricas con números animados */}
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5 w-full lg:w-auto">
-          {metrics.map(([label, animated, real, color]) => (
-            <div key={label} className="bg-slate-900/80 border border-slate-800/80 rounded-xl p-3 text-center min-w-[90px]">
-              <div
-                className={`text-xl font-mono font-extrabold tabular-nums ${color}`}
-                aria-label={`${real} ${label}`}
-              >
-                {animated}
-              </div>
-              <div className="text-[11px] font-medium text-slate-400 mt-0.5">{label}</div>
+        {/* Fichas de métricas con formato de sellos */}
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-2.5 w-full lg:w-auto pt-2 lg:pt-0 border-t lg:border-t-0 border-[#e2dcce]">
+          {/* Aprobadas */}
+          <div className="bg-[#f0fdf4] border-2 border-emerald-600 rounded-xl p-2.5 sm:p-3 text-center min-w-[85px] shadow-2xs">
+            <div className="flex items-center justify-center gap-1 text-emerald-800 mb-0.5">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Aprobadas</span>
             </div>
-          ))}
+            <div className="text-lg sm:text-xl font-mono font-black text-emerald-950 tabular-nums">
+              {animPromo}
+            </div>
+          </div>
+
+          {/* Regulares */}
+          <div className="bg-[#fefce8] border-2 border-amber-600 rounded-xl p-2.5 sm:p-3 text-center min-w-[85px] shadow-2xs">
+            <div className="flex items-center justify-center gap-1 text-amber-900 mb-0.5">
+              <Clock className="w-3.5 h-3.5" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Regulares</span>
+            </div>
+            <div className="text-lg sm:text-xl font-mono font-black text-amber-950 tabular-nums">
+              {animReg}
+            </div>
+          </div>
+
+          {/* Cursando */}
+          <div className="bg-[#f0f9ff] border-2 border-sky-600 rounded-xl p-2.5 sm:p-3 text-center min-w-[85px] shadow-2xs">
+            <div className="flex items-center justify-center gap-1 text-sky-900 mb-0.5">
+              <Loader2 className="w-3.5 h-3.5" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Cursando</span>
+            </div>
+            <div className="text-lg sm:text-xl font-mono font-black text-sky-950 tabular-nums">
+              {animCursando}
+            </div>
+          </div>
+
+          {/* Disponibles */}
+          <div className="bg-[#fff7ed] border-2 border-orange-600 rounded-xl p-2.5 sm:p-3 text-center min-w-[85px] shadow-2xs">
+            <div className="flex items-center justify-center gap-1 text-orange-900 mb-0.5">
+              <Compass className="w-3.5 h-3.5" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Listas</span>
+            </div>
+            <div className="text-lg sm:text-xl font-mono font-black text-orange-950 tabular-nums">
+              {animDisponibles}
+            </div>
+          </div>
+
+          {/* Total */}
+          <div className="bg-[#f5f5f4] border-2 border-[#78716c] rounded-xl p-2.5 sm:p-3 text-center min-w-[85px] shadow-2xs">
+            <div className="flex items-center justify-center gap-1 text-[#44403c] mb-0.5">
+              <BookOpen className="w-3.5 h-3.5" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Total</span>
+            </div>
+            <div className="text-lg sm:text-xl font-mono font-black text-[#1a1916] tabular-nums">
+              {animTotal}
+            </div>
+          </div>
         </div>
       </div>
     </section>
