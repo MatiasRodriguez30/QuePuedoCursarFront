@@ -25,9 +25,10 @@ export function useAuth() {
       setUsuario(u)
       writeCache('usuario', null, u)
     } catch (err) {
-      // Sin respuesta de la tablet se mantiene la sesión hidratada: sólo un
-      // 401 (que ya limpió token y cache) significa que dejó de ser válida.
-      if (err.name === 'HttpError') setUsuario(null)
+      // Sin respuesta de la tablet (o con un 5xx transitorio) se mantiene la
+      // sesión hidratada: sólo un 401 (que ya limpió token y cache) significa
+      // que dejó de ser válida.
+      if (err.status === 401) setUsuario(null)
     } finally {
       setChecking(false)
     }
