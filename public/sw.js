@@ -14,7 +14,7 @@
 //     respuestas del backend son por usuario y cambian en tiempo real; su
 //     cacheo lo maneja la app en localStorage, no el service worker.
 
-const CACHE = 'qpc-v1'
+const CACHE = 'qpc-v2'
 const SHELL = ['/', '/manifest.json', '/favicon.svg']
 
 self.addEventListener('install', (event) => {
