@@ -38,6 +38,11 @@ export function useAppData(showToast, usuarioId) {
   // del mismo commit escribirían el avance del usuario saliente bajo la
   // clave del entrante.
   const [datosDeUsuario, setDatosDeUsuario] = useState(SIN_HIDRATAR)
+  // Ídem para el plan (materias/prereqs/config): pertenece a una carrera. Al
+  // cambiar de carrera, `materias` sigue siendo el plan de la anterior hasta
+  // que llega el fetch; sin este dueño, el efecto de persistencia lo guardaba
+  // bajo la clave de la carrera nueva (pisando su snapshot bueno).
+  const [planDeCarrera, setPlanDeCarrera] = useState(carreraInicial)
   const [carreraId, setCarreraIdState] = useState(carreraInicial)
   const [materias, setMaterias] = useState(() => readCache('materias', carreraInicial) || [])
   const [estadosMap, setEstadosMap] = useState({})
@@ -53,6 +58,13 @@ export function useAppData(showToast, usuarioId) {
     setDatosDeUsuario(usuarioId)
     setCarreras(usuarioId ? readCache('carreras', usuarioId) || [] : [])
     setEstadosMap(usuarioId ? readCache('estados', usuarioId) || {} : {})
+  }
+
+  if (carreraId !== planDeCarrera) {
+    setPlanDeCarrera(carreraId)
+    setMaterias(carreraId ? readCache('materias', carreraId) || [] : [])
+    setPrerequisitos(carreraId ? readCache('prereqs', carreraId) || [] : [])
+    setConfigApp((carreraId && readCache('config', carreraId)) || { anio_actual: null, cuatrimestre_actual: null })
   }
 
   const usuarioIdRef = useRef(usuarioId)
@@ -203,7 +215,7 @@ export function useAppData(showToast, usuarioId) {
   }, [estadosMap, usuarioId, datosSonDelUsuarioActual])
 
   useEffect(() => {
-    if (!carreraId) return
+    if (!carreraId || planDeCarrera !== carreraId) return
     if (materias.length) {
       writeCache('materias', carreraId, materias)
       writeCache('prereqs', carreraId, prerequisitos)
@@ -213,7 +225,7 @@ export function useAppData(showToast, usuarioId) {
       // seguiría hidratando un plan que ya no existe hasta que expire.
       clearCacheDeCarrera(carreraId)
     }
-  }, [carreraId, materias, prerequisitos, configApp, loading])
+  }, [carreraId, planDeCarrera, materias, prerequisitos, configApp, loading])
 
   // Materias/prerequisitos/config son propios de la carrera seleccionada:
   // se recargan cada vez que cambia.
