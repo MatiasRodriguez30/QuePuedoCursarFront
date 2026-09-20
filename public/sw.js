@@ -6,7 +6,10 @@
 //     red. Es lo que permite que la app abra al instante y offline.
 //   - Navegaciones (el HTML): network-first con fallback al último HTML
 //     cacheado, para no quedar sirviendo un index viejo que apunte a assets
-//     que ya no existen, pero seguir abriendo sin conexión.
+//     que ya no existen, pero seguir abriendo sin conexión. Se guarda
+//     siempre bajo la clave '/': es una SPA y el HTML es el mismo para
+//     cualquier URL, así que cachear la request tal cual dejaría en Cache
+//     Storage cosas como '/?reset=<token>' del mail de recuperación.
 //   - Todo lo demás (API, WebSocket, fuentes): pasa derecho a la red. Las
 //     respuestas del backend son por usuario y cambian en tiempo real; su
 //     cacheo lo maneja la app en localStorage, no el service worker.
@@ -44,16 +47,16 @@ async function cacheFirst(request) {
   return respuesta
 }
 
-async function networkFirst(request) {
+async function navegacion(request) {
   try {
     const respuesta = await fetch(request)
     if (respuesta.ok) {
       const cache = await caches.open(CACHE)
-      cache.put(request, respuesta.clone())
+      cache.put('/', respuesta.clone())
     }
     return respuesta
   } catch (err) {
-    const cacheado = await caches.match(request) || await caches.match('/')
+    const cacheado = await caches.match('/')
     if (cacheado) return cacheado
     throw err
   }
@@ -67,6 +70,6 @@ self.addEventListener('fetch', (event) => {
   if (esAssetHasheado(url)) {
     event.respondWith(cacheFirst(request))
   } else if (request.mode === 'navigate') {
-    event.respondWith(networkFirst(request))
+    event.respondWith(navegacion(request))
   }
 })

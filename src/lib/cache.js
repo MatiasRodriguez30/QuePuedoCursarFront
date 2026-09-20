@@ -45,6 +45,13 @@ export function writeCache(nombre, scope, data) {
   }
 }
 
+/** Borra el snapshot de una carrera (su plan cambió a vacío o dejó de existir). */
+export function clearCacheDeCarrera(carreraId) {
+  try {
+    ['materias', 'prereqs', 'config'].forEach(n => localStorage.removeItem(key(n, carreraId)))
+  } catch (_) { /* noop */ }
+}
+
 /** Borra todo el cache (al cerrar sesión: los datos son del usuario anterior). */
 export function clearCache() {
   try {

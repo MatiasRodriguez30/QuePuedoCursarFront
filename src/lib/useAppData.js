@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { apiRequest, getWsUrl } from './api'
 import { buildIndexes, formatEstadoText } from './businessLogic'
-import { readCache, writeCache } from './cache'
+import { clearCacheDeCarrera, readCache, writeCache } from './cache'
 
 const CARRERA_STORAGE_KEY = 'qpc_carrera_id'
+// Marca "todavía no se hidrató para nadie": no puede ser null ni undefined,
+// que son valores válidos de usuarioId (sesión cerrada / aún sin resolver).
+const SIN_HIDRATAR = Symbol('sin-hidratar')
 
 function leerCarreraGuardada() {
   try {
@@ -30,6 +33,11 @@ export function useAppData(showToast, usuarioId) {
   // segundo plano, en vez de una pantalla de carga bloqueante contra un
   // backend que puede tardar segundos en despertar.
   const [carreras, setCarreras] = useState([])
+  // Quién es el dueño de `carreras`/`estadosMap` en memoria. Se ajusta
+  // durante el render (no en un efecto) porque los efectos de persistencia
+  // del mismo commit escribirían el avance del usuario saliente bajo la
+  // clave del entrante.
+  const [datosDeUsuario, setDatosDeUsuario] = useState(SIN_HIDRATAR)
   const [carreraId, setCarreraIdState] = useState(carreraInicial)
   const [materias, setMaterias] = useState(() => readCache('materias', carreraInicial) || [])
   const [estadosMap, setEstadosMap] = useState({})
@@ -38,6 +46,15 @@ export function useAppData(showToast, usuarioId) {
   const [eventos, setEventos] = useState([])
   const [wsStatus, setWsStatus] = useState('connecting') // connecting | connected | disconnected
   const [loading, setLoading] = useState(() => !(readCache('materias', carreraInicial)?.length))
+
+  if (usuarioId !== datosDeUsuario) {
+    // Cambió la sesión: se descarta lo del usuario anterior y se hidrata
+    // (o se vacía) con lo del nuevo. Nunca se conserva lo que había.
+    setDatosDeUsuario(usuarioId)
+    setCarreras(usuarioId ? readCache('carreras', usuarioId) || [] : [])
+    setEstadosMap(usuarioId ? readCache('estados', usuarioId) || {} : {})
+  }
+
   const usuarioIdRef = useRef(usuarioId)
   usuarioIdRef.current = usuarioId
   const carreraIdRef = useRef(carreraId)
@@ -104,7 +121,17 @@ export function useAppData(showToast, usuarioId) {
     try {
       await apiRequest(`/estados/${materiaId}`, { method: 'PUT', body: JSON.stringify({ estado: nuevoEstado }) })
     } catch (err) {
+      if (err.name === 'TimeoutError') {
+        // El PUT puede haberse aplicado igual: revertir mostraría algo falso.
+        // Se deja el valor optimista y el eco del WS (o el próximo fetch)
+        // corrige si el servidor terminó rechazándolo.
+        showToastRef.current?.('warning', 'Sin confirmación', 'El servidor tardó en responder: revisá el estado al reconectar')
+        return
+      }
       setEstadosMap(prev => {
+        // Si mientras fallaba el usuario volvió a tocar la materia, el valor
+        // vigente es el del último click: revertirlo pisaría esa intención.
+        if (prev[materiaId] !== nuevoEstado) return prev
         const revertido = { ...prev }
         if (anterior === undefined) delete revertido[materiaId]
         else revertido[materiaId] = anterior
@@ -152,36 +179,35 @@ export function useAppData(showToast, usuarioId) {
   }, [setCarreraId])
 
   useEffect(() => {
-    if (!usuarioId) return
-    // Carreras y progreso son por usuario: sólo se pueden hidratar del
-    // cache una vez que se sabe quién inició sesión.
-    const carrerasCache = readCache('carreras', usuarioId)
-    const estadosCache = readCache('estados', usuarioId)
-    if (carrerasCache?.length) setCarreras(carrerasCache)
-    if (estadosCache) setEstadosMap(estadosCache)
-  }, [usuarioId])
-
-  useEffect(() => {
     fetchInicial()
   }, [fetchInicial, usuarioId])
 
   // Persistencia del snapshot: se guarda el estado ya aplicado (venga de un
   // fetch, del WebSocket o de un update optimista), no cada respuesta suelta.
-  useEffect(() => {
-    if (usuarioId && carreras.length) writeCache('carreras', usuarioId, carreras)
-  }, [carreras, usuarioId])
+  // `datosDeUsuario !== usuarioId` significa que el estado en memoria todavía
+  // es del usuario anterior: guardarlo ahora lo filtraría a la sesión nueva.
+  const datosSonDelUsuarioActual = usuarioId && datosDeUsuario === usuarioId
 
   useEffect(() => {
-    if (usuarioId && Object.keys(estadosMap).length) writeCache('estados', usuarioId, estadosMap)
-  }, [estadosMap, usuarioId])
+    if (datosSonDelUsuarioActual && carreras.length) writeCache('carreras', usuarioId, carreras)
+  }, [carreras, usuarioId, datosSonDelUsuarioActual])
 
   useEffect(() => {
-    if (carreraId && materias.length) {
+    if (datosSonDelUsuarioActual) writeCache('estados', usuarioId, estadosMap)
+  }, [estadosMap, usuarioId, datosSonDelUsuarioActual])
+
+  useEffect(() => {
+    if (!carreraId) return
+    if (materias.length) {
       writeCache('materias', carreraId, materias)
       writeCache('prereqs', carreraId, prerequisitos)
       writeCache('config', carreraId, configApp)
+    } else if (!loading) {
+      // La carrera quedó sin materias: si no se borra, el snapshot viejo
+      // seguiría hidratando un plan que ya no existe hasta que expire.
+      clearCacheDeCarrera(carreraId)
     }
-  }, [carreraId, materias, prerequisitos, configApp])
+  }, [carreraId, materias, prerequisitos, configApp, loading])
 
   // Materias/prerequisitos/config son propios de la carrera seleccionada:
   // se recargan cada vez que cambia.

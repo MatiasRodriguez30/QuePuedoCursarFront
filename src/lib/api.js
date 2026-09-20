@@ -85,6 +85,9 @@ export function setUnauthorizedHandler(fn) { onUnauthorized = fn }
 // timeout, los GET se reintentan con backoff, y los GET idénticos que están
 // en vuelo al mismo tiempo comparten una sola respuesta.
 const DEFAULT_TIMEOUT_MS = 12000
+// Una escritura que se corta por timeout puede haberse aplicado igual en el
+// servidor, así que se le da margen de sobra antes de darla por perdida.
+const WRITE_TIMEOUT_MS = 30000
 const GET_RETRIES = 2
 const RETRY_BASE_DELAY_MS = 600
 
@@ -97,6 +100,15 @@ class HttpError extends Error {
     super(message)
     this.name = 'HttpError'
     this.status = status
+  }
+}
+
+// Se distingue del AbortError del llamador: en una escritura, un timeout no
+// significa que el servidor no la haya aplicado.
+export class TimeoutError extends Error {
+  constructor(timeoutMs) {
+    super(`el servidor no respondió en ${Math.round(timeoutMs / 1000)}s`)
+    this.name = 'TimeoutError'
   }
 }
 
@@ -113,10 +125,11 @@ function esReintentable(err) {
  */
 function withTimeout(externalSignal, timeoutMs) {
   const controller = new AbortController()
-  const timer = setTimeout(
-    () => controller.abort(new Error('el servidor no respondió a tiempo')),
-    timeoutMs,
-  )
+  const estado = { expirado: false }
+  const timer = setTimeout(() => {
+    estado.expirado = true
+    controller.abort(new TimeoutError(timeoutMs))
+  }, timeoutMs)
   const onExternalAbort = () => controller.abort(externalSignal.reason)
   if (externalSignal) {
     if (externalSignal.aborted) controller.abort(externalSignal.reason)
@@ -126,14 +139,14 @@ function withTimeout(externalSignal, timeoutMs) {
     clearTimeout(timer)
     externalSignal?.removeEventListener('abort', onExternalAbort)
   }
-  return { signal: controller.signal, cleanup }
+  return { signal: controller.signal, cleanup, estado }
 }
 
 async function doRequest(endpoint, options, timeoutMs) {
   const defaultHeaders = { 'Content-Type': 'application/json' }
   const token = getToken()
   if (token) defaultHeaders['Authorization'] = `Bearer ${token}`
-  const { signal, cleanup } = withTimeout(options.signal, timeoutMs)
+  const { signal, cleanup, estado } = withTimeout(options.signal, timeoutMs)
 
   let res
   try {
@@ -142,6 +155,8 @@ async function doRequest(endpoint, options, timeoutMs) {
       headers: { ...defaultHeaders, ...options.headers },
       signal,
     })
+  } catch (err) {
+    throw estado.expirado ? new TimeoutError(timeoutMs) : err
   } finally {
     cleanup()
   }
@@ -163,18 +178,19 @@ async function doRequest(endpoint, options, timeoutMs) {
 }
 
 export async function apiRequest(endpoint, options = {}) {
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, retries, ...fetchOptions } = options
+  const { timeoutMs, retries, ...fetchOptions } = options
   const method = (fetchOptions.method || 'GET').toUpperCase()
   // Sólo los GET son seguros de reintentar/deduplicar: repetir un POST/PUT
   // podría duplicar escrituras en el backend.
   const esGet = method === 'GET'
+  const timeout = timeoutMs ?? (esGet ? DEFAULT_TIMEOUT_MS : WRITE_TIMEOUT_MS)
   const intentos = (retries ?? (esGet ? GET_RETRIES : 0)) + 1
 
   const ejecutar = async () => {
     let ultimoError
     for (let intento = 0; intento < intentos; intento++) {
       try {
-        return await doRequest(endpoint, fetchOptions, timeoutMs)
+        return await doRequest(endpoint, fetchOptions, timeout)
       } catch (err) {
         ultimoError = err
         if (intento === intentos - 1 || !esReintentable(err)) break
