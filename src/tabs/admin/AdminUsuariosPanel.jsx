@@ -3,8 +3,8 @@ import { Shield, User, Users } from 'lucide-react'
 import { apiRequest } from '../../lib/api'
 
 export default function AdminUsuariosPanel({ showToast, usuarioActualId }) {
-  const [usuarios, setUsuarios] = useState(null) // null = cargando
-  const [cambiando, setCambiando] = useState(null) // id del usuario cuyo rol se está guardando
+  const [usuarios, setUsuarios] = useState(null)
+  const [cambiando, setCambiando] = useState(null)
 
   useEffect(() => {
     apiRequest('/usuarios')
@@ -17,7 +17,10 @@ export default function AdminUsuariosPanel({ showToast, usuarioActualId }) {
     if (nuevoRol === usuario.rol) return
     setCambiando(usuario.id)
     try {
-      const actualizado = await apiRequest(`/usuarios/${usuario.id}/rol`, { method: 'PUT', body: JSON.stringify({ rol: nuevoRol }) })
+      const actualizado = await apiRequest(`/usuarios/${usuario.id}/rol`, {
+        method: 'PUT',
+        body: JSON.stringify({ rol: nuevoRol }),
+      })
       setUsuarios(prev => prev.map(u => u.id === usuario.id ? actualizado : u))
       showToast('success', 'Rol Actualizado', `${usuario.email} ahora es ${nuevoRol === 'ADMIN' ? 'Administrador' : 'Usuario'}`)
     } catch (err) {
@@ -28,47 +31,89 @@ export default function AdminUsuariosPanel({ showToast, usuarioActualId }) {
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
-          <Users className="w-4 h-4 text-brand-400" />
-          Usuarios
-        </h3>
-        <p className="text-xs text-slate-400 mt-1">Quién tiene cuenta en la app y qué rol tiene. Sólo un ADMIN puede editar materias, correlatividades, carreras y período actual.</p>
+    <div className="space-y-5">
+      <div className="pb-3 border-b-2 border-[#111111]">
+        <h2 className="font-display text-sm sm:text-base font-bold uppercase text-[#111111] flex items-center gap-2">
+          <Users className="w-4 h-4 text-[#111111]" aria-hidden="true" />
+          Usuarios Registrados
+        </h2>
+        <p className="text-xs font-mono text-[#52525b] mt-0.5">
+          Permisos de acceso. Sólo una cuenta con rol ADMIN puede modificar materias, carreras y correlatividades.
+        </p>
       </div>
 
       {usuarios === null ? (
-        <p className="text-xs text-slate-500 italic py-6 text-center">Cargando...</p>
+        <div className="p-8 text-center bg-[#f4f0e6] border-2 border-dashed border-[#111111]">
+          <p className="text-xs font-mono font-bold uppercase text-[#52525b]">Cargando usuarios registrados...</p>
+        </div>
       ) : usuarios.length === 0 ? (
-        <p className="text-xs text-slate-500 italic py-6 text-center">Todavía no hay usuarios registrados.</p>
+        <div className="p-8 text-center bg-[#f4f0e6] border-2 border-dashed border-[#111111]">
+          <p className="font-mono text-xs text-[#52525b]">No hay usuarios en la base de datos.</p>
+        </div>
       ) : (
-        <div className="space-y-2">
-          {usuarios.map(u => (
-            <div key={u.id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-900/80 border border-slate-800/80">
-              <div className="flex items-center gap-2.5 min-w-0">
-                {u.rol === 'ADMIN' ? <Shield className="w-4 h-4 text-amber-400 flex-shrink-0" /> : <User className="w-4 h-4 text-slate-500 flex-shrink-0" />}
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-white truncate">{u.email}{u.id === usuarioActualId && <span className="text-slate-500 font-normal"> (vos)</span>}</p>
-                  <p className="text-[10px] text-slate-500">Registrado el {new Date(u.creado_en).toLocaleDateString('es-AR')}</p>
+        <div className="space-y-3">
+          {usuarios.map(u => {
+            const esPropio = u.id === usuarioActualId
+            return (
+              <div
+                key={u.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-[#f9f6ee] border-2 border-[#111111] shadow-fanzine-sm"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-2 bg-white border-2 border-[#111111] text-[#111111] flex-shrink-0">
+                    {u.rol === 'ADMIN' ? (
+                      <Shield className="w-4 h-4 text-[#ff1464]" aria-hidden="true" />
+                    ) : (
+                      <User className="w-4 h-4 text-[#52525b]" aria-hidden="true" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold font-mono text-[#111111] truncate">
+                      {u.email}
+                      {esPropio && (
+                        <span className="ml-1.5 px-1.5 py-0.2 bg-[#ccff00] text-[#111111] border border-[#111111] text-[10px] font-mono">
+                          VOS
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[10px] font-mono text-[#71717a] mt-0.5">
+                      Registrado: {new Date(u.creado_en).toLocaleDateString('es-AR')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 self-end sm:self-auto flex-shrink-0">
+                  <span className="text-[10px] font-mono font-bold uppercase text-[#71717a] mr-1 hidden sm:inline">
+                    Rol:
+                  </span>
+                  {['USER', 'ADMIN'].map(rol => {
+                    const active = u.rol === rol
+                    const disabled = cambiando === u.id || (esPropio && u.rol === 'ADMIN' && rol === 'USER')
+                    return (
+                      <button
+                        key={rol}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => cambiarRol(u, rol)}
+                        title={
+                          esPropio && u.rol === 'ADMIN' && rol === 'USER'
+                            ? 'No podés quitarte el rol de administrador a vos mismo'
+                            : undefined
+                        }
+                        className={`px-3 py-1.5 text-xs font-mono font-bold uppercase border-2 border-[#111111] transition-all cursor-pointer min-h-[36px] disabled:opacity-40 disabled:cursor-not-allowed ${
+                          active
+                            ? 'bg-[#111111] text-[#ccff00] shadow-[2px_2px_0px_#ff1464]'
+                            : 'bg-white text-[#111111] hover:bg-[#fff9db]'
+                        }`}
+                      >
+                        {rol === 'ADMIN' ? 'Admin' : 'Usuario'}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
-              <div className="flex gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 flex-shrink-0">
-                {['USER', 'ADMIN'].map(rol => (
-                  <button
-                    key={rol}
-                    disabled={cambiando === u.id || (u.id === usuarioActualId && u.rol === 'ADMIN' && rol === 'USER')}
-                    onClick={() => cambiarRol(u, rol)}
-                    title={u.id === usuarioActualId && u.rol === 'ADMIN' && rol === 'USER' ? 'No podés quitarte el rol de administrador a vos mismo' : undefined}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                      u.rol === rol ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    {rol === 'ADMIN' ? 'Admin' : 'Usuario'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

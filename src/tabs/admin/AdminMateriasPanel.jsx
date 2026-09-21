@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { BookX, Edit3, GitFork, Plus, Search, Shuffle, Trash2 } from 'lucide-react'
+import { BookX, ChevronDown, ChevronUp, Edit3, GitFork, Plus, Search, Shuffle, Trash2 } from 'lucide-react'
 import { apiRequest } from '../../lib/api'
 import MateriaModal from '../../components/MateriaModal'
 import PrereqsModal from '../../components/PrereqsModal'
 
 export default function AdminMateriasPanel({ ctx, showToast, showConfirm }) {
   const [query, setQuery] = useState('')
-  const [editingMateria, setEditingMateria] = useState(undefined) // undefined = cerrado, null = nueva, obj = editar
+  const [editingMateria, setEditingMateria] = useState(undefined)
   const [prereqsMateria, setPrereqsMateria] = useState(null)
 
   let list = ctx.materias
@@ -20,6 +20,17 @@ export default function AdminMateriasPanel({ ctx, showToast, showConfirm }) {
     gruposPorAnio[key].push(m)
   })
   const aniosOrdenados = Object.keys(gruposPorAnio).sort((a, b) => Number(a) - Number(b))
+  const [expandedAnios, setExpandedAnios] = useState(() => {
+    const primer = aniosOrdenados[0] || '1'
+    return { [primer]: true }
+  })
+
+  function toggleAnio(anioKey) {
+    setExpandedAnios(prev => ({
+      ...prev,
+      [anioKey]: !prev[anioKey]
+    }))
+  }
 
   async function handleDelete(m) {
     const ok = await showConfirm(
@@ -35,99 +46,146 @@ export default function AdminMateriasPanel({ ctx, showToast, showConfirm }) {
   }
 
   if (!ctx.carreraActual) {
-    return <p className="text-xs text-slate-500 italic py-8 text-center">Elegí una carrera arriba para gestionar sus materias.</p>
+    return (
+      <div className="p-8 text-center bg-[#f4f0e6] border-2 border-dashed border-[#111111]">
+        <p className="font-mono text-xs font-bold uppercase text-[#52525b]">
+          Elegí una carrera en la barra superior para gestionar sus materias.
+        </p>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pb-3 border-b-2 border-[#111111]">
         <div>
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <GitFork className="w-4 h-4 text-brand-400" />
-            Materias y Correlatividades — {ctx.carreraActual.nombre}
-          </h3>
-          <p className="text-xs text-slate-400">Gestiona materias, años, cuatrimestres y árbol de requisitos de esta carrera</p>
+          <h2 className="font-display text-sm sm:text-base font-bold uppercase text-[#111111] flex items-center gap-2">
+            <GitFork className="w-4 h-4 text-[#111111]" aria-hidden="true" />
+            Materias — {ctx.carreraActual.nombre}
+          </h2>
+          <p className="text-xs font-mono text-[#52525b] mt-0.5">
+            Asignaturas, régimen cuatrimestral y cadena de correlatividades.
+          </p>
         </div>
 
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
+          <div className="relative flex-1 sm:w-60">
+            <Search className="w-3.5 h-3.5 text-[#71717a] absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
             <input
-              type="text" value={query} onChange={e => setQuery(e.target.value)}
-              placeholder="Buscar materia..."
-              className="w-full bg-slate-900/80 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Buscar materia o código..."
+              className="w-full bg-[#f4f0e6] border-2 border-[#111111] pl-8 pr-3 py-1.5 text-xs font-mono font-bold text-[#111111] placeholder-[#71717a] focus:outline-none focus:bg-white min-h-[44px]"
             />
           </div>
-          <button onClick={() => setEditingMateria(null)} className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-brand-500/25 transition-all whitespace-nowrap">
-            <Plus className="w-4 h-4" />
+          <button
+            type="button"
+            onClick={() => setEditingMateria(null)}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#ccff00] hover:bg-[#b8e600] text-[#111111] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] text-xs font-mono font-bold uppercase cursor-pointer min-h-[44px] whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4" aria-hidden="true" />
             <span>Nueva Materia</span>
           </button>
         </div>
       </div>
 
       {list.length === 0 ? (
-        <div className="py-14 text-center glass-panel rounded-2xl border border-slate-800">
-          <BookX className="w-10 h-10 text-slate-500 mx-auto mb-3" />
-          <h3 className="text-sm font-semibold text-slate-300">No hay asignaturas cargadas en esta carrera</h3>
-          <p className="text-xs text-slate-500 mt-1">Usa el botón "+ Nueva Materia" para empezar a cargar el plan de estudios</p>
+        <div className="p-8 text-center bg-[#f4f0e6] border-2 border-dashed border-[#111111]">
+          <BookX className="w-8 h-8 text-[#71717a] mx-auto mb-2" aria-hidden="true" />
+          <p className="font-display text-sm font-bold uppercase text-[#111111]">No se encontraron materias</p>
+          <p className="text-xs font-mono text-[#52525b] mt-1">Usá "+ Nueva Materia" para cargar materias a esta carrera.</p>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {aniosOrdenados.map(anioKey => {
             const materiasAnio = gruposPorAnio[anioKey]
-            const titulo = anioKey == 0 ? 'Asignaturas Generales / Sin Año Asignado' : `${anioKey}° Año Curricular`
+            const titulo = anioKey == 0 ? 'Materias Sin Nivel Asignado' : `${anioKey}º Año de Cursada`
+            const isOpen = Boolean(query.trim() || expandedAnios[anioKey])
             return (
               <div key={anioKey} className="space-y-3">
-                <div className="flex items-center gap-3 pb-1 border-b border-slate-800/80">
-                  <span className="w-2 h-2 rounded-full bg-brand-500" />
-                  <h3 className="text-sm font-bold text-slate-200">{titulo}</h3>
-                  <span className="text-xs text-slate-500 font-mono">({materiasAnio.length} materias)</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                <button
+                  type="button"
+                  aria-expanded={isOpen}
+                  onClick={() => toggleAnio(anioKey)}
+                  className="w-full flex items-center justify-between gap-2 pb-1.5 border-b-2 border-[#111111] text-left cursor-pointer md:cursor-default select-none"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 bg-[#ff1464] border border-[#111111]" aria-hidden="true" />
+                    <h3 className="font-display text-xs sm:text-sm font-bold uppercase text-[#111111]">{titulo}</h3>
+                    <span className="text-[11px] font-mono text-[#52525b]">({materiasAnio.length} materias)</span>
+                  </div>
+                  <span className="md:hidden flex items-center gap-1 font-mono text-[10px] font-bold uppercase px-2 py-0.5 border border-[#111111] bg-white text-[#111111] shadow-[1px_1px_0px_#111111]">
+                    {isOpen ? (
+                      <>
+                        <span>Plegar</span>
+                        <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" />
+                      </>
+                    ) : (
+                      <>
+                        <span>Desplegar</span>
+                        <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />
+                      </>
+                    )}
+                  </span>
+                </button>
+
+                {/* Grilla responsiva de fichas (acordeón en móvil, expandida en escritorio) */}
+                <div className={isOpen ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-3'}>
                   {materiasAnio.map(m => {
                     const reqs = ctx.prereqsByMateria[m.id] || []
                     return (
-                      <div key={m.id} className="glass-card rounded-xl p-4 border border-slate-800/80 flex flex-col justify-between gap-3">
+                      <div
+                        key={m.id}
+                        className="bg-[#f9f6ee] border-2 border-[#111111] shadow-fanzine-sm p-3.5 flex flex-col justify-between gap-2.5"
+                      >
                         <div>
-                          <div className="flex items-start justify-between gap-2 mb-1.5">
-                            <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">{m.codigo}</span>
-                            <span className="text-[11px] text-slate-400 font-medium">{m.cuatrimestre ? `${m.cuatrimestre}° Cuatrimestre` : 'Anual'}{m.horas_semanales ? ` • ${m.horas_semanales}hs` : ''}</span>
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <span className="font-mono text-xs font-bold px-1.5 py-0.5 bg-[#111111] text-[#ccff00]">
+                              {m.codigo}
+                            </span>
+                            <span className="text-[10px] font-mono font-bold text-[#52525b]">
+                              {m.cuatrimestre ? `${m.cuatrimestre}° Cuat.` : 'Anual'} • {m.horas_semanales || 4} hs/sem
+                            </span>
                           </div>
-                          <h4 className="text-sm font-bold text-white leading-snug">{m.nombre}</h4>
+                          <h4 className="text-sm font-bold text-[#111111] leading-snug">{m.nombre}</h4>
                           {m.es_basica_compartida && (
-                            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 border border-teal-500/30">
-                              <Shuffle className="w-2.5 h-2.5" /> Comisión compartida
+                            <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-mono font-bold px-1.5 py-0.2 bg-[#eff6ff] text-[#0047ff] border border-[#111111]">
+                              <Shuffle className="w-2.5 h-2.5" aria-hidden="true" />
+                              <span>Comisión compartida</span>
                             </span>
                           )}
-                          {m.descripcion && <p className="text-xs text-slate-400 mt-1 line-clamp-2">{m.descripcion}</p>}
+                          <p className="text-[11px] font-mono text-[#52525b] mt-1.5">
+                            Correlativas directas: <b className="text-[#111111]">{reqs.length}</b>
+                          </p>
                         </div>
 
-                        <div className="space-y-1.5 pt-2 border-t border-slate-800/60">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-semibold uppercase text-slate-500 tracking-wider">Correlatividades:</span>
-                            <span className="text-[11px] font-mono text-brand-400 font-bold">{reqs.length}</span>
-                          </div>
-                          <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
-                            {reqs.length > 0 ? reqs.map(p => (
-                              <span key={p.id} className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-700/80">
-                                <span className="font-semibold text-brand-300">{p.tipo === 'REGULARIZADA' ? 'REG' : 'APR'}:</span>
-                                <span className="truncate max-w-[120px]">{p.materia_requerida?.nombre || 'Materia'}</span>
-                              </span>
-                            )) : <span className="text-xs text-slate-500 italic">Ninguna (Inicial)</span>}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
-                          <button onClick={() => setPrereqsMateria(m)} className="text-xs font-semibold text-brand-400 hover:text-brand-300 flex items-center gap-1 py-1 px-2 rounded-lg hover:bg-brand-500/10 transition-colors">
-                            <GitFork className="w-3.5 h-3.5" />
-                            <span>Requisitos</span>
+                        <div className="flex items-center justify-between pt-2 border-t border-[#111111] gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setPrereqsMateria(m)}
+                            className="text-xs font-mono font-bold text-[#111111] hover:text-[#ff1464] underline underline-offset-2 cursor-pointer"
+                          >
+                            Correlatividades
                           </button>
-                          <div className="flex items-center gap-1">
-                            <button onClick={() => setEditingMateria(m)} title="Editar Asignatura" className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors">
-                              <Edit3 className="w-3.5 h-3.5" />
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setEditingMateria(m)}
+                              title="Editar materia"
+                              aria-label={`Editar materia ${m.nombre}`}
+                              className="p-1.5 bg-white hover:bg-[#fff9db] text-[#111111] border-2 border-[#111111] shadow-[1px_1px_0px_#111111] cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" aria-hidden="true" />
                             </button>
-                            <button onClick={() => handleDelete(m)} title="Eliminar Asignatura" className="p-1.5 text-rose-400 hover:text-rose-300 rounded-lg hover:bg-rose-500/10 transition-colors">
-                              <Trash2 className="w-3.5 h-3.5" />
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(m)}
+                              title="Eliminar materia"
+                              aria-label={`Eliminar materia ${m.nombre}`}
+                              className="p-1.5 bg-[#fee2e2] hover:bg-[#fca5a5] text-[#991b1b] border-2 border-[#111111] shadow-[1px_1px_0px_#111111] cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                             </button>
                           </div>
                         </div>
@@ -142,8 +200,14 @@ export default function AdminMateriasPanel({ ctx, showToast, showConfirm }) {
       )}
 
       {editingMateria !== undefined && (
-        <MateriaModal materia={editingMateria} carreraId={ctx.carreraActual.id} onClose={() => setEditingMateria(undefined)} showToast={showToast} />
+        <MateriaModal
+          materia={editingMateria}
+          carreraId={ctx.carreraActual.id}
+          onClose={() => setEditingMateria(undefined)}
+          showToast={showToast}
+        />
       )}
+
       {prereqsMateria && (
         <PrereqsModal
           materia={prereqsMateria}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Calendar } from 'lucide-react'
+import { Calendar, CheckCircle2, RotateCcw } from 'lucide-react'
 import { apiRequest } from '../../lib/api'
 import { getPeriodoActual } from '../../lib/businessLogic'
 
@@ -13,22 +13,29 @@ export default function AdminConfigPanel({ ctx, showToast, setConfigApp }) {
   }, [ctx.configApp.anio_actual, ctx.configApp.cuatrimestre_actual])
 
   if (!ctx.carreraActual) {
-    return <p className="text-xs text-slate-500 italic py-8 text-center">Elegí una carrera arriba para configurar su período actual.</p>
+    return (
+      <div className="p-8 text-center bg-[#f4f0e6] border-2 border-dashed border-[#111111]">
+        <p className="font-mono text-xs font-bold uppercase text-[#52525b]">
+          Elegí una carrera en la barra superior para configurar su período actual.
+        </p>
+      </div>
+    )
   }
 
   const periodo = getPeriodoActual(ctx.configApp)
-  const periodoTexto = ctx.configApp.anio_actual && ctx.configApp.cuatrimestre_actual
-    ? `✓ Configurado manualmente: ${periodo.cuatrimestre}° cuatrimestre ${periodo.anio}`
-    : `Sin configurar — usando fecha del dispositivo: ${periodo.cuatrimestre || 'receso'}° cuatrimestre ${periodo.anio}`
+  const esManual = Boolean(ctx.configApp.anio_actual && ctx.configApp.cuatrimestre_actual)
 
   async function guardarPeriodo() {
-    const anio = parseInt(anioInput) || null
+    const anio = parseInt(anioInput, 10) || null
     if (!anio || !cuatSel) {
       showToast('warning', 'Datos incompletos', 'Elegí año y cuatrimestre antes de guardar')
       return
     }
     try {
-      const cfg = await apiRequest(`/config?carrera_id=${ctx.carreraActual.id}`, { method: 'PUT', body: JSON.stringify({ anio_actual: anio, cuatrimestre_actual: cuatSel }) })
+      const cfg = await apiRequest(`/config?carrera_id=${ctx.carreraActual.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ anio_actual: anio, cuatrimestre_actual: cuatSel }),
+      })
       setConfigApp(cfg)
       showToast('success', 'Período Guardado', 'La ruta sugerida ya usa el momento actual')
     } catch (err) {
@@ -39,7 +46,10 @@ export default function AdminConfigPanel({ ctx, showToast, setConfigApp }) {
   async function limpiarPeriodo() {
     try {
       setCuatSel(null)
-      const cfg = await apiRequest(`/config?carrera_id=${ctx.carreraActual.id}`, { method: 'PUT', body: JSON.stringify({ anio_actual: null, cuatrimestre_actual: null }) })
+      const cfg = await apiRequest(`/config?carrera_id=${ctx.carreraActual.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ anio_actual: null, cuatrimestre_actual: null }),
+      })
       setConfigApp(cfg)
       showToast('info', 'Período Automático', 'Volviendo a estimar por fecha del dispositivo')
     } catch (err) {
@@ -48,35 +58,93 @@ export default function AdminConfigPanel({ ctx, showToast, setConfigApp }) {
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-brand-400" />
-          Período Actual — {ctx.carreraActual.nombre}
-        </h3>
-        <p className="text-xs text-slate-400 mt-1">Definilo para que el "Camino Óptimo" y las próximas oportunidades sean exactas para esta carrera. Si lo dejás vacío, el sistema estima el cuatrimestre con la fecha del dispositivo.</p>
+    <div className="space-y-5">
+      <div className="pb-3 border-b-2 border-[#111111]">
+        <h2 className="font-display text-sm sm:text-base font-bold uppercase text-[#111111] flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-[#111111]" aria-hidden="true" />
+          Período Académico Activo — {ctx.carreraActual.nombre}
+        </h2>
+        <p className="text-xs font-mono text-[#52525b] mt-0.5 leading-relaxed">
+          Permite fijar el año y cuatrimestre en curso para sincronizar las oportunidades de cursada y el itinerario sugerido.
+        </p>
       </div>
-      <div className="flex flex-wrap items-end gap-3">
+
+      {/* Estado actual del período */}
+      <div className="p-3.5 bg-[#f9f6ee] border-2 border-[#111111] shadow-fanzine-sm">
+        <span className="text-[10px] font-mono font-bold uppercase text-[#71717a] block">
+          Estado actual:
+        </span>
+        <p className="text-xs font-mono font-bold text-[#111111] mt-0.5">
+          {esManual ? (
+            <span className="text-[#15803d]">
+              ★ Manual fijado: {periodo.cuatrimestre}º cuatrimestre {periodo.anio}
+            </span>
+          ) : (
+            <span className="text-[#52525b]">
+              Reloj automático: {periodo.cuatrimestre || 'receso'}º cuatrimestre {periodo.anio} (según fecha local)
+            </span>
+          )}
+        </p>
+      </div>
+
+      {/* Controles de selección */}
+      <div className="flex flex-wrap items-end gap-3 pt-1">
         <div>
-          <label className="block text-[11px] font-semibold text-slate-400 mb-1">Año calendario</label>
-          <input type="number" value={anioInput} onChange={e => setAnioInput(e.target.value)} placeholder="Ej: 2026"
-            className="w-28 bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500" />
+          <label htmlFor="cfg-anio" className="block text-xs font-mono font-bold uppercase text-[#111111] mb-1">
+            Año calendario
+          </label>
+          <input
+            id="cfg-anio"
+            type="number"
+            value={anioInput}
+            onChange={e => setAnioInput(e.target.value)}
+            placeholder="Ej: 2026"
+            className="w-32 bg-[#f4f0e6] border-2 border-[#111111] px-3 py-2 text-xs font-mono font-bold text-[#111111] focus:outline-none focus:bg-white min-h-[44px]"
+          />
         </div>
+
         <div>
-          <label className="block text-[11px] font-semibold text-slate-400 mb-1">Cuatrimestre</label>
-          <div className="flex gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+          <span className="block text-xs font-mono font-bold uppercase text-[#111111] mb-1">
+            Cuatrimestre
+          </span>
+          <div className="flex gap-1.5 bg-[#f4f0e6] p-1 border-2 border-[#111111]">
             {[1, 2].map(n => (
-              <button key={n} type="button" onClick={() => setCuatSel(n)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${cuatSel === n ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
-                {n}°
+              <button
+                key={n}
+                type="button"
+                onClick={() => setCuatSel(n)}
+                className={`px-4 py-1.5 text-xs font-mono font-bold uppercase transition-all cursor-pointer min-h-[36px] ${
+                  cuatSel === n
+                    ? 'bg-[#111111] text-[#ccff00] border-2 border-[#111111] shadow-[2px_2px_0px_#ff1464]'
+                    : 'bg-white text-[#111111] border border-[#111111] hover:bg-[#fff9db]'
+                }`}
+              >
+                {n}º Cuatrimestre
               </button>
             ))}
           </div>
         </div>
-        <button onClick={guardarPeriodo} className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-brand-500/25 transition-all">Guardar</button>
-        <button onClick={limpiarPeriodo} className="px-3 py-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors">Usar fecha automática</button>
+
+        <button
+          type="button"
+          onClick={guardarPeriodo}
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#ccff00] hover:bg-[#b8e600] text-[#111111] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] text-xs font-mono font-bold uppercase cursor-pointer min-h-[44px]"
+        >
+          <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+          <span>Guardar Período</span>
+        </button>
+
+        {esManual && (
+          <button
+            type="button"
+            onClick={limpiarPeriodo}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-[#fee2e2] text-[#991b1b] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] text-xs font-mono font-bold uppercase cursor-pointer min-h-[44px]"
+          >
+            <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Volver a Automático</span>
+          </button>
+        )}
       </div>
-      <p className="text-xs text-slate-400">{periodoTexto}</p>
     </div>
   )
 }

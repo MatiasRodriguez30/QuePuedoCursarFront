@@ -1,8 +1,8 @@
 # Qué Puedo Cursar — Frontend
 
-React + Vite + Tailwind CSS. Consume el backend de
-[QuePuedoCursarBack](https://github.com/MatiasRodriguez30/QuePuedoCursarBack)
-(FastAPI + WebSocket, corriendo en una tablet vía Cloudflare Tunnel).
+Planificador universitario personal en tiempo real. Construido con React 19 + Vite 8 + Tailwind CSS 4 + Lucide. Consume el backend de [QuePuedoCursarBack](https://github.com/MatiasRodriguez30/QuePuedoCursarBack) (FastAPI + WebSocket).
+
+Estética de **fanzine risograph**: papel sulfito, tinta negra, magenta y verde lima flúo, sellos de estado y tipografías con carácter (Dela Gothic One, Archivo, Space Mono, autoalojadas). La mascota es **Tito el cobayo**, ilustrado en cinco poses para los estados vacíos y de carga. Pensada para el día a día en tablet y celular (PWA instalable, funciona sin conexión gracias al service worker).
 
 ## Desarrollo local
 
@@ -11,41 +11,20 @@ npm install
 npm run dev
 ```
 
-Por defecto apunta a `https://quepuedocursar.takana.online` (ver
-`src/lib/api.js`). Para apuntar a otro backend (ej. uno local), copiá
-`.env.example` a `.env` y cambiá `VITE_API_URL`, o simplemente abrí la app
-con `?api=http://localhost:8000` una vez — queda guardado en `localStorage`
-del navegador sin necesidad de rebuildear.
+Para apuntar a un backend local, creá un archivo `.env.local` (queda fuera de git) con `VITE_API_URL=http://localhost:8000`.
 
-## Deploy en Vercel
+## Secciones
 
-1. Importar este repo en Vercel (detecta Vite automáticamente).
-2. Opcional: configurar la variable de entorno `VITE_API_URL` en el proyecto
-   de Vercel si el backend cambia de URL (ej. si se migra a un dominio fijo
-   distinto). Si no se configura, usa el default hardcodeado.
-3. Build command: `npm run build` (default). Output: `dist/`.
+- **Hoy**: qué podés cursar ya (ordenado por impacto en cascada), finales pendientes, materias en curso, agenda de hoy y mañana, y tu avance sobre las materias obligatorias.
+- **Mi carrera**: malla por años con el estado de cada materia. Al tocar una ficha se resaltan sus correlativas y lo que desbloquea, y se abre una hoja de detalle para cambiar el estado (con "Deshacer").
+- **Camino**: itinerario cuatrimestre a cuatrimestre, predicción de qué se desbloquea si aprobás lo que estás cursando, atajos y excepciones de correlatividad, y créditos de electivas por nivel.
+- **Agenda**: calendario semanal y mensual con eventos propios e institucionales, en tiempo real. Los administradores pueden crear y editar eventos.
+- **Administración** (solo administradores): materias, carreras, período académico y usuarios.
 
-## Estructura
+## Tests y calidad
 
+```bash
+npm run lint      # oxlint
+npm test -- --run # vitest
+npm run build     # vite build
 ```
-src/
-  lib/
-    api.js              # resolución de la URL del backend + fetch wrapper
-    businessLogic.js     # toda la lógica de correlatividades/excepciones (pura)
-    useAppData.js         # fetch inicial + WebSocket en tiempo real
-    useToasts.js / useConfirm.js
-  components/            # Header, HeroMetrics, modales, toasts
-  tabs/                  # las 5 pestañas de la app
-```
-
-## Pestañas
-
-- **¿Qué Puedo Cursar?** — qué materias podés cursar ahora, con impacto en
-  cascada ("cuánto te atrasa no aprobarla") y próxima oportunidad de cursado.
-- **Mis Estados** — marcar No Cursada / Cursando / Regular / Aprobada por
-  materia, y reiniciar todo el avance académico.
-- **Plan de Estudios** — ABM de materias y correlatividades.
-- **Recomendaciones** — excepciones de correlatividad (Ordenanza 1872,
-  cursado condicional) y materias con comisión compartida entre carreras.
-- **Camino Óptimo** — configurar el cuatrimestre actual, predicción de qué se
-  desbloquea si aprobás lo que estás cursando, y ruta sugerida de cursada.

@@ -1,22 +1,52 @@
-import { AlertCircle, AlertTriangle, CheckCircle, Info, X } from 'lucide-react'
+import { AlertCircle, AlertTriangle, CheckCircle2, Info, Undo2, X } from 'lucide-react'
 
 const STYLES = {
-  success: { border: 'border-emerald-500/40', icon: CheckCircle, color: 'text-emerald-400' },
-  warning: { border: 'border-amber-500/40', icon: AlertTriangle, color: 'text-amber-400' },
-  error: { border: 'border-rose-500/40', icon: AlertCircle, color: 'text-rose-400' },
-  info: { border: 'border-brand-500/40', icon: Info, color: 'text-brand-400' },
+  success: {
+    bg: 'bg-[#ccff00]',
+    border: 'border-2 border-[#111111]',
+    titleColor: 'text-[#111111]',
+    textColor: 'text-[#111111]',
+    iconColor: 'text-[#111111]',
+    shadow: 'shadow-[4px_4px_0px_#111111]',
+    icon: CheckCircle2,
+  },
+  warning: {
+    bg: 'bg-[#fffbeb]',
+    border: 'border-2 border-[#111111]',
+    titleColor: 'text-[#111111]',
+    textColor: 'text-[#111111]',
+    iconColor: 'text-[#d97706]',
+    shadow: 'shadow-[4px_4px_0px_#111111]',
+    icon: AlertTriangle,
+  },
+  error: {
+    bg: 'bg-[#fee2e2]',
+    border: 'border-2 border-[#111111]',
+    titleColor: 'text-[#111111]',
+    textColor: 'text-[#111111]',
+    iconColor: 'text-[#dc2626]',
+    shadow: 'shadow-[4px_4px_0px_#111111]',
+    icon: AlertCircle,
+  },
+  info: {
+    bg: 'bg-[#dbeafe]',
+    border: 'border-2 border-[#111111]',
+    titleColor: 'text-[#111111]',
+    textColor: 'text-[#111111]',
+    iconColor: 'text-[#0047ff]',
+    shadow: 'shadow-[4px_4px_0px_#111111]',
+    icon: Info,
+  },
 }
 
 export default function ToastContainer({ toasts, onDismiss }) {
   return (
-    // aria-live="polite" y role="log" permiten que los screen readers anuncien
-    // los toasts sin interrumpir la lectura en curso.
     <div
       role="log"
       aria-live="polite"
       aria-atomic="false"
       aria-label="Notificaciones"
-      className="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm pointer-events-none"
+      className="fixed bottom-20 md:bottom-6 right-4 left-4 sm:left-auto sm:right-6 z-50 flex flex-col gap-3 max-w-md pointer-events-none"
     >
       {toasts.map(t => {
         const cfg = STYLES[t.type] || STYLES.info
@@ -24,24 +54,37 @@ export default function ToastContainer({ toasts, onDismiss }) {
         return (
           <div
             key={t.id}
-            onClick={() => onDismiss(t.id)}
-            title="Clic para cerrar"
             role="alert"
             aria-live="assertive"
             aria-atomic="true"
-            className={`pointer-events-auto cursor-pointer flex items-start gap-3 p-3.5 rounded-xl border ${cfg.border} bg-slate-900/95 shadow-2xl backdrop-blur-md transition-all duration-300`}
+            className={`pointer-events-auto flex items-start gap-3 p-3.5 ${cfg.bg} ${cfg.border} ${cfg.shadow} transition-all`}
           >
-            <Icon className={`w-5 h-5 ${cfg.color} flex-shrink-0 mt-0.5`} aria-hidden="true" />
-            <div className="flex-1 pr-2">
-              <div className="text-xs font-bold text-white">{t.title}</div>
-              <div className="text-xs text-slate-400 mt-0.5">{t.message}</div>
+            <Icon className={`w-5 h-5 ${cfg.iconColor} flex-shrink-0 mt-0.5`} aria-hidden="true" />
+            <div className="flex-1 pr-1 min-w-0">
+              <div className={`text-xs font-bold uppercase tracking-wider ${cfg.titleColor}`}>{t.title}</div>
+              <div className={`text-xs ${cfg.textColor} mt-0.5 font-medium leading-snug break-words`}>
+                {t.message}
+              </div>
+              {t.action && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    t.action.onClick?.()
+                    onDismiss(t.id)
+                  }}
+                  className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 text-[11px] font-bold uppercase bg-[#111111] text-[#ccff00] hover:bg-[#ff1464] hover:text-white border border-[#111111] shadow-[2px_2px_0px_#111111] cursor-pointer transition-colors"
+                >
+                  <Undo2 className="w-3 h-3" aria-hidden="true" />
+                  <span>{t.action.label || 'Deshacer'}</span>
+                </button>
+              )}
             </div>
             <button
-              onClick={e => { e.stopPropagation(); onDismiss(t.id) }}
+              onClick={() => onDismiss(t.id)}
               aria-label="Cerrar notificación"
-              className="text-slate-500 hover:text-slate-300 transition-colors"
+              className="text-[#111111] hover:text-[#ff1464] transition-colors p-1"
             >
-              <X className="w-3.5 h-3.5" aria-hidden="true" />
+              <X className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         )

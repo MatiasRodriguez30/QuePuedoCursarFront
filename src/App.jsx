@@ -1,31 +1,29 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
-import { GraduationCap } from 'lucide-react'
-import Header from './components/Header'
-import HeroMetrics from './components/HeroMetrics'
+import Shell from './components/Shell'
 import ToastContainer from './components/ToastContainer'
 import ConfirmDialog from './components/ConfirmDialog'
 import LoginScreen from './components/LoginScreen'
 import ResetPasswordScreen from './components/ResetPasswordScreen'
-import ConsultasTab from './tabs/ConsultasTab'
+import TitoAvatar from './components/TitoAvatar'
+import HoySurface from './tabs/HoySurface'
+import CarreraSurface from './tabs/CarreraSurface'
 import { useAppData } from './lib/useAppData'
 import { useToasts } from './lib/useToasts'
 import { useConfirm } from './lib/useConfirm'
 import { useAuth } from './lib/useAuth'
 import { checkCursadaRequirements, checkExcepcionMachete, computeCondicionalidadCandidatos } from './lib/businessLogic'
 
-// Sólo la pestaña inicial entra en el bundle principal: el resto (incluido
-// todo el panel de admin, que la mayoría de los usuarios nunca abre) se
-// descarga recién al abrirla.
-const EstadosTab = lazy(() => import('./tabs/EstadosTab'))
-const PlanTab = lazy(() => import('./tabs/PlanTab'))
-const RecomendacionesTab = lazy(() => import('./tabs/RecomendacionesTab'))
-const RutaTab = lazy(() => import('./tabs/RutaTab'))
+// Lazy loading de superficies y paneles secundarios
+const CaminoSurface = lazy(() => import('./tabs/CaminoSurface'))
 const AgendaTab = lazy(() => import('./tabs/AgendaTab'))
 const AdminTab = lazy(() => import('./tabs/AdminTab'))
 
 export default function App() {
   const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get('reset'))
-  const [currentTab, setCurrentTab] = useState('consultas')
+  const [currentSurface, setCurrentSurface] = useState('hoy')
+  const [targetMateriaId, setTargetMateriaId] = useState(null)
+  const [adminOpen, setAdminOpen] = useState(false)
+
   const { toasts, showToast, dismiss } = useToasts()
   const { confirmState, showConfirm, resolveConfirm } = useConfirm()
   const { usuario, checking, login, registrar, logout, esAdmin } = useAuth()
@@ -44,6 +42,22 @@ export default function App() {
     return candidatos.length + (machete.elegible ? 1 : 0)
   }, [ctx])
 
+  function handleNavigateToCarrera(materiaId = null) {
+    if (materiaId) setTargetMateriaId(materiaId)
+    setAdminOpen(false)
+    setCurrentSurface('carrera')
+  }
+
+  function handleNavigateToCamino() {
+    setAdminOpen(false)
+    setCurrentSurface('camino')
+  }
+
+  function handleNavigateToAgenda() {
+    setAdminOpen(false)
+    setCurrentSurface('agenda')
+  }
+
   if (resetToken) {
     return (
       <ResetPasswordScreen
@@ -58,8 +72,9 @@ export default function App() {
 
   if (checking) {
     return (
-      <div className="min-h-full flex items-center justify-center bg-slate-950">
-        <GraduationCap className="w-8 h-8 text-brand-400 animate-pulse" />
+      <div className="min-h-full flex flex-col items-center justify-center bg-[#f4f0e6] p-4 text-center">
+        <TitoAvatar variant="cafe" className="w-16 h-16 mb-3" />
+        <p className="text-xs font-mono font-bold uppercase text-[#111111]">Abriendo el fanzine...</p>
       </div>
     )
   }
@@ -69,63 +84,118 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-full flex flex-col bg-slate-950 font-sans">
+    <Shell
+      currentSurface={currentSurface}
+      onSelectSurface={s => {
+        setAdminOpen(false)
+        setCurrentSurface(s)
+      }}
+      wsStatus={wsStatus}
+      badgeDisponibles={badgeDisponibles}
+      badgeRecomendaciones={badgeRecomendaciones}
+      usuario={usuario}
+      onLogout={logout}
+      carreras={ctx.carreras}
+      carreraId={carreraId}
+      onCarreraChange={setCarreraId}
+      onOpenAdmin={() => setAdminOpen(true)}
+      detailSheetOpen={currentSurface === 'carrera' && Boolean(targetMateriaId)}
+    >
       {loading && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-950 gap-4">
-          <div className="relative h-14 w-14">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-400 p-0.5 animate-pulse">
-              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-                <GraduationCap className="w-6 h-6 text-brand-400" />
-              </div>
-            </div>
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#f4f0e6]/95 p-6 gap-3 select-none">
+          <div className="p-3 bg-white border-3 border-[#111111] shadow-fanzine-md">
+            <TitoAvatar variant="cafe" className="w-16 h-16" />
           </div>
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-bounce" />
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-bounce [animation-delay:120ms]" />
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-bounce [animation-delay:240ms]" />
-            <span className="ml-1">Sincronizando plan de estudios...</span>
+          <div className="text-center space-y-1">
+            <h2 className="text-sm font-display font-bold uppercase text-[#111111]">Acomodando los apuntes</h2>
+            <p className="text-xs font-mono text-[#52525b]">Sincronizando tus materias y correlatividades...</p>
           </div>
         </div>
       )}
 
-      <Header
-        currentTab={currentTab}
-        onTabChange={setCurrentTab}
-        wsStatus={wsStatus}
-        badgeDisponibles={badgeDisponibles}
-        badgeRecomendaciones={badgeRecomendaciones}
-        usuario={usuario}
-        onLogout={logout}
-        carreras={ctx.carreras}
-        carreraId={carreraId}
-        onCarreraChange={setCarreraId}
-      />
+      {/* Panel de administración en ventana modal si el admin lo abre desde el menú de usuario */}
+      {adminOpen && esAdmin ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b-2 border-[#111111]">
+            <h2 className="font-display text-base font-bold uppercase text-[#111111]">
+              Administración del Sistema
+            </h2>
+            <button
+              type="button"
+              onClick={() => setAdminOpen(false)}
+              className="px-3 py-1 bg-white border-2 border-[#111111] text-xs font-mono font-bold uppercase shadow-[2px_2px_0px_#111111] hover:bg-[#ff1464] hover:text-white cursor-pointer"
+            >
+              Volver a cursada ✕
+            </button>
+          </div>
+          <Suspense fallback={<TabFallback />}>
+            <AdminTab
+              ctx={ctx}
+              showToast={showToast}
+              showConfirm={showConfirm}
+              setConfigApp={setConfigApp}
+              usuarioActualId={usuario.id}
+            />
+          </Suspense>
+        </div>
+      ) : (
+        <>
+          {currentSurface === 'hoy' && (
+            <HoySurface
+              ctx={ctx}
+              onNavigateToCarrera={handleNavigateToCarrera}
+              onNavigateToCamino={handleNavigateToCamino}
+              onNavigateToAgenda={handleNavigateToAgenda}
+              onActualizarEstado={actualizarEstado}
+              cargarEventos={cargarEventos}
+            />
+          )}
 
-      <main role="main" aria-label="Contenido principal" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        <HeroMetrics ctx={ctx} />
+          {currentSurface === 'carrera' && (
+            <CarreraSurface
+              ctx={ctx}
+              selectedMateriaId={targetMateriaId}
+              onSelectMateria={setTargetMateriaId}
+              actualizarEstado={actualizarEstado}
+              showToast={showToast}
+              showConfirm={showConfirm}
+            />
+          )}
 
-        <Suspense fallback={<TabFallback />}>
-          {currentTab === 'consultas' && <ConsultasTab ctx={ctx} />}
-          {currentTab === 'estados' && <EstadosTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} actualizarEstado={actualizarEstado} />}
-          {currentTab === 'plan' && <PlanTab ctx={ctx} />}
-          {currentTab === 'recomendaciones' && <RecomendacionesTab ctx={ctx} />}
-          {currentTab === 'ruta' && <RutaTab ctx={ctx} />}
-          {currentTab === 'agenda' && <AgendaTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} esAdmin={esAdmin} cargarEventos={cargarEventos} />}
-          {currentTab === 'admin' && esAdmin && <AdminTab ctx={ctx} showToast={showToast} showConfirm={showConfirm} setConfigApp={setConfigApp} usuarioActualId={usuario.id} />}
-        </Suspense>
-      </main>
+          {currentSurface === 'camino' && (
+            <Suspense fallback={<TabFallback />}>
+              <CaminoSurface
+                ctx={ctx}
+                onNavigateToCarrera={handleNavigateToCarrera}
+              />
+            </Suspense>
+          )}
+
+          {currentSurface === 'agenda' && (
+            <Suspense fallback={<TabFallback />}>
+              <AgendaTab
+                ctx={ctx}
+                showToast={showToast}
+                showConfirm={showConfirm}
+                esAdmin={esAdmin}
+                cargarEventos={cargarEventos}
+              />
+            </Suspense>
+          )}
+        </>
+      )}
 
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
       <ConfirmDialog state={confirmState} onResolve={resolveConfirm} />
-    </div>
+    </Shell>
   )
 }
 
 function TabFallback() {
   return (
-    <div className="py-16 flex items-center justify-center gap-2 text-xs text-slate-500">
-      <GraduationCap className="w-4 h-4 text-brand-400 animate-pulse" aria-hidden="true" />
-      Cargando sección...
+    <div className="py-16 flex flex-col items-center justify-center gap-2 text-xs font-mono font-bold text-[#52525b]">
+      <TitoAvatar variant="cafe" className="w-10 h-10" />
+      Cargando página...
     </div>
   )
 }
