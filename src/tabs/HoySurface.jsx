@@ -261,7 +261,7 @@ export default function HoySurface({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {listasVisibles.map(m => {
               const atrasa = m.cascada.totalMateriasAtrasadas
               return (
@@ -325,7 +325,7 @@ export default function HoySurface({
       </section>
 
       {/* ── CUADRO 2: FINALES PENDIENTES & EN CURSO ─────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Finales Pendientes */}
         <section className="bg-white border-2 border-[#111111] shadow-fanzine p-4">
           <div className="flex items-center justify-between pb-2 mb-3 border-b-2 border-[#111111]">

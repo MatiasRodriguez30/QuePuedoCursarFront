@@ -256,8 +256,8 @@ export default function CarreraSurface({
         </div>
       )}
 
-      {/* ── NAVEGACIÓN MÓVIL POR AÑO (< 768px) ─────────────────────────────────── */}
-      <div className="md:hidden flex overflow-x-auto gap-1.5 p-1 bg-[#eee8d8] border-2 border-[#111111]">
+      {/* ── NAVEGACIÓN MÓVIL Y TABLET POR AÑO (< 1024px) ─────────────────────── */}
+      <div className="lg:hidden flex overflow-x-auto gap-1.5 p-1 bg-[#eee8d8] border-2 border-[#111111]">
         {ANIOS.map(a => (
           <button
             key={a}
@@ -275,50 +275,52 @@ export default function CarreraSurface({
       </div>
 
       {/* ── MALLA VIVA: COLUMNAS 1º A 5º AÑO + ELECTIVAS ─────────────────────── */}
-      <div className="flex gap-3">
-        {/* Grid de columnas (en desktop todas visibles; en móvil la seleccionada) */}
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-3 items-start">
-          {mallaData
-            .filter(col => {
-              if (typeof window !== 'undefined' && window.innerWidth < 768) {
-                return col.anioKey === anioMobile
-              }
-              return true
-            })
-            .map(col => (
-              <div
-                key={col.anioKey}
-                className="bg-[#f9f6ee] border-2 border-[#111111] shadow-fanzine-sm p-2.5 flex flex-col gap-2"
-              >
-                {/* Cabecera de columna */}
-                <div className="flex justify-between items-baseline pb-1.5 border-b-2 border-[#111111]">
-                  <h3 className="font-display text-xs font-bold uppercase text-[#111111]">
-                    {col.label}
-                  </h3>
-                  <span className="font-mono text-[10px] font-bold text-[#52525b]">
-                    {col.materias.filter(m => m.estado === 'PROMOCIONADA').length}/{col.materias.length}
-                  </span>
-                </div>
+      <div className="flex gap-3 items-start">
+        {/* Grid de columnas (en desktop todas visibles con min-width; en móvil/tablet la seleccionada) */}
+        <div className="flex-1 min-w-0 overflow-x-auto pb-4">
+          <div className="grid grid-cols-1 lg:grid-cols-6 gap-2.5 min-w-0 lg:min-w-[960px] items-start">
+            {mallaData
+              .filter(col => {
+                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                  return col.anioKey === anioMobile
+                }
+                return true
+              })
+              .map(col => (
+                <div
+                  key={col.anioKey}
+                  className="bg-[#f9f6ee] border-2 border-[#111111] shadow-fanzine-sm p-2.5 flex flex-col gap-2"
+                >
+                  {/* Cabecera de columna */}
+                  <div className="flex justify-between items-baseline pb-1.5 border-b-2 border-[#111111]">
+                    <h3 className="font-display text-xs font-bold uppercase text-[#111111]">
+                      {col.label}
+                    </h3>
+                    <span className="font-mono text-[10px] font-bold text-[#52525b]">
+                      {col.materias.filter(m => m.estado === 'PROMOCIONADA').length}/{col.materias.length}
+                    </span>
+                  </div>
 
-                {/* Fichas de la columna */}
-                <div className="flex flex-col gap-2">
-                  {col.materias.map(m => (
-                    <MateriaFichaCompacta
-                      key={m.id}
-                      materia={m}
-                      onClick={() => handleSelectMateria(m.id)}
-                    />
-                  ))}
+                  {/* Fichas de la columna */}
+                  <div className="flex flex-col gap-2">
+                    {col.materias.map(m => (
+                      <MateriaFichaCompacta
+                        key={m.id}
+                        materia={m}
+                        onClick={() => handleSelectMateria(m.id)}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+          </div>
         </div>
 
         {/* ── PANEL LATERAL DE DETALLE EN ESCRITORIO (>= 1024px) ───────────────── */}
         {materiaActiva && (
           <aside
             aria-label="Detalle de materia seleccionada"
-            className="hidden lg:flex w-84 bg-white border-3 border-[#111111] shadow-fanzine-md p-4 flex-col gap-3.5 sticky top-20 flex-shrink-0 max-h-[85vh] overflow-y-auto"
+            className="hidden lg:flex w-80 bg-white border-3 border-[#111111] shadow-fanzine-md p-4 flex-col gap-3.5 sticky top-20 flex-shrink-0 max-h-[85vh] overflow-y-auto"
           >
             <HojaDeDetalleContenido
               materia={materiaActiva}
@@ -402,10 +404,10 @@ const MateriaFichaCompacta = memo(function MateriaFichaCompacta({ materia, onCli
       className={`w-full text-left p-2.5 transition-all cursor-pointer relative ${borderClass} ${bgClass}`}
     >
       <div className="flex items-center justify-between gap-1 mb-1 font-mono text-[10px] font-bold">
-        <span className={isDimmed ? 'text-[#27272a]' : 'text-[#52525b]'}>
+        <span className={`truncate ${isDimmed ? 'text-[#27272a]' : 'text-[#52525b]'}`} title={codigo}>
           {codigo}
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           {labelBadge}
           <EstadoStampMini estado={estado} isLista={isLista} />
         </div>
