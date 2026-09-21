@@ -35,112 +35,125 @@ export default function AdminMateriasPanel({ ctx, showToast, showConfirm }) {
   }
 
   if (!ctx.carreraActual) {
-    return <p className="text-xs text-[#57534e] italic py-8 text-center">Elegí una carrera arriba para gestionar sus materias.</p>
+    return (
+      <div className="p-8 text-center bg-[#f4f0e6] border-2 border-dashed border-[#111111]">
+        <p className="font-mono text-xs font-bold uppercase text-[#52525b]">
+          Elegí una carrera en la barra superior para gestionar sus materias.
+        </p>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-[#e2dcce]">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pb-3 border-b-2 border-[#111111]">
         <div>
-          <h3 className="text-sm font-bold text-[#1a1916] flex items-center gap-2">
-            <GitFork className="w-4 h-4 text-orange-700" />
-            Materias y Correlatividades — {ctx.carreraActual.nombre}
-          </h3>
-          <p className="text-xs text-[#57534e]">
-            Gestioná asignaturas, años, cuatrimestres y requisitos de esta carrera.
+          <h2 className="font-display text-sm sm:text-base font-bold uppercase text-[#111111] flex items-center gap-2">
+            <GitFork className="w-4 h-4 text-[#111111]" aria-hidden="true" />
+            Materias — {ctx.carreraActual.nombre}
+          </h2>
+          <p className="text-xs font-mono text-[#52525b] mt-0.5">
+            Asignaturas, régimen cuatrimestral y cadena de correlatividades.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="w-4 h-4 text-[#78716c] absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
+          <div className="relative flex-1 sm:w-60">
+            <Search className="w-3.5 h-3.5 text-[#71717a] absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
             <input
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Buscar materia..."
-              className="w-full bg-white border-2 border-[#78716c] rounded-xl pl-9 pr-4 py-2 text-xs text-[#1a1916] placeholder-[#78716c] focus:outline-none focus:border-orange-600 transition-colors min-h-[44px]"
+              placeholder="Buscar materia o código..."
+              className="w-full bg-[#f4f0e6] border-2 border-[#111111] pl-8 pr-3 py-1.5 text-xs font-mono font-bold text-[#111111] placeholder-[#71717a] focus:outline-none focus:bg-white min-h-[44px]"
             />
           </div>
           <button
+            type="button"
             onClick={() => setEditingMateria(null)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-orange-700 hover:bg-orange-800 text-white rounded-xl text-xs font-bold shadow-xs transition-colors whitespace-nowrap min-h-[44px]"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#ccff00] hover:bg-[#b8e600] text-[#111111] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] text-xs font-mono font-bold uppercase cursor-pointer min-h-[44px] whitespace-nowrap"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4" aria-hidden="true" />
             <span>Nueva Materia</span>
           </button>
         </div>
       </div>
 
       {list.length === 0 ? (
-        <div className="py-12 text-center notebook-panel rounded-2xl border border-[#e2dcce] bg-white p-6">
-          <BookX className="w-10 h-10 text-[#78716c] mx-auto mb-2" />
-          <h4 className="text-sm font-bold text-[#1a1916]">No hay materias cargadas</h4>
-          <p className="text-xs text-[#57534e] mt-1">Usá el botón "+ Nueva Materia" para cargar el plan.</p>
+        <div className="p-8 text-center bg-[#f4f0e6] border-2 border-dashed border-[#111111]">
+          <BookX className="w-8 h-8 text-[#71717a] mx-auto mb-2" aria-hidden="true" />
+          <p className="font-display text-sm font-bold uppercase text-[#111111]">No se encontraron materias</p>
+          <p className="text-xs font-mono text-[#52525b] mt-1">Usá "+ Nueva Materia" para cargar materias a esta carrera.</p>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {aniosOrdenados.map(anioKey => {
             const materiasAnio = gruposPorAnio[anioKey]
-            const titulo = anioKey == 0 ? 'Materias Sin Año Asignado' : `${anioKey}° Año de Cursada`
+            const titulo = anioKey == 0 ? 'Materias Sin Nivel Asignado' : `${anioKey}º Año de Cursada`
             return (
               <div key={anioKey} className="space-y-3">
-                <div className="flex items-center gap-2.5 pb-1 border-b-2 border-[#d6cebf]">
-                  <span className="w-2.5 h-2.5 rounded-full bg-orange-600" />
-                  <h4 className="text-sm font-bold text-[#1a1916]">{titulo}</h4>
-                  <span className="text-xs text-[#78716c] font-mono">({materiasAnio.length} materias)</span>
+                <div className="flex items-center gap-2 pb-1.5 border-b-2 border-[#111111]">
+                  <span className="w-2.5 h-2.5 bg-[#ff1464] border border-[#111111]" aria-hidden="true" />
+                  <h3 className="font-display text-xs sm:text-sm font-bold uppercase text-[#111111]">{titulo}</h3>
+                  <span className="text-[11px] font-mono text-[#52525b]">({materiasAnio.length} materias)</span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+
+                {/* Grilla responsiva de fichas (móvil 1 col, tablet/desktop 2-3 col) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {materiasAnio.map(m => {
                     const reqs = ctx.prereqsByMateria[m.id] || []
                     return (
                       <div
                         key={m.id}
-                        className="notebook-card rounded-xl p-4 border-2 border-[#e2dcce] bg-white flex flex-col justify-between gap-3"
+                        className="bg-[#f9f6ee] border-2 border-[#111111] shadow-fanzine-sm p-3.5 flex flex-col justify-between gap-2.5"
                       >
                         <div>
-                          <div className="flex items-start justify-between gap-2 mb-1.5">
-                            <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-[#f4efe6] text-[#1a1916] border border-[#78716c]">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <span className="font-mono text-xs font-bold px-1.5 py-0.5 bg-[#111111] text-[#ccff00]">
                               {m.codigo}
                             </span>
-                            <span className="text-[11px] text-[#57534e] font-semibold">
-                              {m.cuatrimestre ? `${m.cuatrimestre}°C` : 'Anual'}
-                              {m.horas_semanales ? ` • ${m.horas_semanales}hs` : ''}
+                            <span className="text-[10px] font-mono font-bold text-[#52525b]">
+                              {m.cuatrimestre ? `${m.cuatrimestre}° Cuat.` : 'Anual'} • {m.horas_semanales || 4} hs/sem
                             </span>
                           </div>
-                          <h5 className="text-sm font-bold text-[#1a1916] leading-snug">{m.nombre}</h5>
+                          <h4 className="text-sm font-bold text-[#111111] leading-snug">{m.nombre}</h4>
                           {m.es_basica_compartida && (
-                            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-teal-100 text-teal-950 border border-teal-500">
-                              <Shuffle className="w-2.5 h-2.5" /> Comisión compartida
+                            <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-mono font-bold px-1.5 py-0.2 bg-[#eff6ff] text-[#0047ff] border border-[#111111]">
+                              <Shuffle className="w-2.5 h-2.5" aria-hidden="true" />
+                              <span>Comisión compartida</span>
                             </span>
                           )}
-                          <p className="text-[11px] text-[#57534e] mt-1.5">
-                            Correlatividades: <b className="text-orange-900">{reqs.length}</b>
+                          <p className="text-[11px] font-mono text-[#52525b] mt-1.5">
+                            Correlativas directas: <b className="text-[#111111]">{reqs.length}</b>
                           </p>
                         </div>
-                        <div className="flex items-center justify-between pt-2 border-t border-[#e2dcce]">
+
+                        <div className="flex items-center justify-between pt-2 border-t border-[#111111] gap-1">
                           <button
+                            type="button"
                             onClick={() => setPrereqsMateria(m)}
-                            className="text-xs font-bold text-orange-800 hover:text-orange-950 hover:underline"
+                            className="text-xs font-mono font-bold text-[#111111] hover:text-[#ff1464] underline underline-offset-2 cursor-pointer"
                           >
-                            Editar correlatividades
+                            Correlatividades
                           </button>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5">
                             <button
+                              type="button"
                               onClick={() => setEditingMateria(m)}
                               title="Editar materia"
                               aria-label={`Editar materia ${m.nombre}`}
-                              className="p-1.5 text-[#57534e] hover:text-[#1a1916] rounded-lg hover:bg-[#f4efe6] transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                              className="p-1.5 bg-white hover:bg-[#fff9db] text-[#111111] border-2 border-[#111111] shadow-[1px_1px_0px_#111111] cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
                             >
-                              <Edit3 className="w-4 h-4" />
+                              <Edit3 className="w-3.5 h-3.5" aria-hidden="true" />
                             </button>
                             <button
+                              type="button"
                               onClick={() => handleDelete(m)}
                               title="Eliminar materia"
                               aria-label={`Eliminar materia ${m.nombre}`}
-                              className="p-1.5 text-rose-700 hover:text-rose-900 rounded-lg hover:bg-rose-50 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                              className="p-1.5 bg-[#fee2e2] hover:bg-[#fca5a5] text-[#991b1b] border-2 border-[#111111] shadow-[1px_1px_0px_#111111] cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                             </button>
                           </div>
                         </div>
