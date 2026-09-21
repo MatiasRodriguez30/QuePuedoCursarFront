@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Wireframe CAMINO - Desktop (1280px)</title>
+  <style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;900&family=Dela+Gothic+One&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+  --font-display: 'Dela Gothic One', cursive;
+  --font-sans: 'Archivo', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+  --paper: #f4f0e6;
+  --ink: #111111;
+  --lime: #ccff00;
+  --magenta: #ff1464;
+  --blue: #0047ff;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  background-image: radial-gradient(rgba(17, 17, 17, 0.05) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+  word-spacing: 0.18em;
+}
+
+.font-mono { font-family: var(--font-mono); }
+
+.fanzine-card {
+  background: #ffffff;
+  border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0px var(--ink);
+}
+
+.fanzine-card-sm {
+  background: #ffffff;
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0px var(--ink);
+}
+
+.fanzine-badge-lime {
+  background: var(--lime);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+}
+
+.fanzine-badge-magenta {
+  background: var(--magenta);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+}
+
+.fanzine-badge-ink {
+  background: var(--ink);
+  color: var(--lime);
+}
+
+.fanzine-badge-blue {
+  background: var(--blue);
+  color: #ffffff;
+  border: 1px solid var(--ink);
+}
+
+.btn-lime {
+  background: var(--lime);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0px var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.btn-white {
+  background: #ffffff;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0px var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* Timeline specific */
+.timeline-step {
+  position: relative;
+  padding-left: 24px;
+  border-left: 3px solid var(--ink);
+}
+.timeline-step::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 0px;
+  width: 13px;
+  height: 13px;
+  background: var(--lime);
+  border: 2px solid var(--ink);
+}
+</style>
+</head>
+<body style="padding: 24px; max-width: 1280px; margin: 0 auto;">
+  <!-- Header / Nav bar simulado -->
+  <header style="background: #f4f0e6; border-bottom: 2px solid var(--ink); padding: 12px 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="width: 36px; height: 36px; background: var(--lime); border: 2px solid var(--ink); box-shadow: 2px 2px 0px var(--ink); display: flex; align-items: center; justify-content: center;">
+        <img src="../../src/assets/tito/tito-cafe.webp" style="width: 30px; height: 30px; object-fit: contain;">
+      </div>
+      <div>
+        <h1 class="font-display" style="font-size: 16px; font-weight: 700; text-transform: uppercase;">Qué Puedo Cursar</h1>
+        <span class="font-mono" style="font-size: 9px; font-weight: 700; color: #52525b; letter-spacing: 2px;">FANZINE V.03</span>
+      </div>
+    </div>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <span class="font-mono" style="font-size: 11px; font-weight: 700; background: #fff; border: 2px solid var(--ink); padding: 4px 10px; box-shadow: 2px 2px 0px var(--ink);">Ingeniería en Sistemas</span>
+      <span class="font-mono" style="font-size: 10px; font-weight: 700; background: var(--lime); border: 2px solid var(--ink); padding: 4px 8px; box-shadow: 2px 2px 0px var(--ink);">● EN VIVO</span>
+      <span class="font-mono" style="font-size: 11px; font-weight: 700; background: #fff; border: 2px solid var(--ink); padding: 4px 10px; box-shadow: 2px 2px 0px var(--ink);">test@ejemplo.com (Admin)</span>
+    </div>
+  </header>
+
+  <div style="display: flex; gap: 24px;">
+    <!-- Rail lateral -->
+    <aside style="width: 200px; background: #eee8d8; border-right: 3px solid var(--ink); border: 2px solid var(--ink); padding: 16px; display: flex; flex-direction: column; gap: 10px; height: fit-content; box-shadow: 3px 3px 0px var(--ink);">
+      <div class="font-mono" style="font-size: 10px; font-weight: 700; color: #71717a;">SECCIONES</div>
+      <div style="padding: 10px; border: 2px solid var(--ink); font-size: 11px; font-weight: 700; font-family: var(--font-mono); background: #fff; box-shadow: 2px 2px 0px var(--ink);">HOY (5)</div>
+      <div style="padding: 10px; border: 2px solid var(--ink); font-size: 11px; font-weight: 700; font-family: var(--font-mono); background: #fff; box-shadow: 2px 2px 0px var(--ink);">MI CARRERA</div>
+      <div style="padding: 10px; border: 2px solid var(--ink); font-size: 11px; font-weight: 700; font-family: var(--font-mono); background: var(--ink); color: var(--lime); box-shadow: 3px 3px 0px var(--magenta);">CAMINO ★</div>
+      <div style="padding: 10px; border: 2px solid var(--ink); font-size: 11px; font-weight: 700; font-family: var(--font-mono); background: #fff; box-shadow: 2px 2px 0px var(--ink);">AGENDA</div>
+    </aside>
+
+    <!-- Contenido principal Camino -->
+    <main style="flex: 1; display: flex; flex-direction: column; gap: 24px;">
+      <!-- Banner Cabecera Camino con Tito Lupa -->
+      <div class="fanzine-card" style="padding: 20px; border-width: 3px; display: flex; justify-content: space-between; align-items: center; background: #fff;">
+        <div>
+          <div class="fanzine-badge-ink font-mono" style="display: inline-block; padding: 2px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">
+            ITINERARIO SECUENCIAL & ATAJOS
+          </div>
+          <h2 class="font-display" style="font-size: 22px; text-transform: uppercase;">Camino Óptimo de Cursada</h2>
+          <p class="font-mono" style="font-size: 12px; color: #52525b; margin-top: 4px;">
+            Simulación período a período para completar el plan minimizando cuatrimestres perdidos por correlatividades.
+          </p>
+        </div>
+        <div style="width: 80px; height: 80px; background: var(--lime); border: 2px solid var(--ink); box-shadow: 3px 3px 0px var(--ink); padding: 4px; display: flex; align-items: center; justify-content: center;">
+          <img src="../../src/assets/tito/tito-lupa.webp" style="width: 100%; height: 100%; object-fit: contain;">
+        </div>
+      </div>
+
+      <!-- SECCIÓN 1: PREDICCIÓN DE DESBLOQUEOS -->
+      <section class="fanzine-card" style="padding: 20px; border-left: 6px solid var(--blue);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <div>
+            <span class="font-mono" style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--blue);">★ SIMULACIÓN DE ÉXITO</span>
+            <h3 class="font-display" style="font-size: 15px; text-transform: uppercase;">Predicción: Si aprobás lo que estás cursando</h3>
+          </div>
+          <span class="fanzine-badge-blue font-mono" style="padding: 2px 8px; font-size: 10px; font-weight: 700;">1 MATERIA EN CURSO</span>
+        </div>
+        <div style="display: grid; grid-cols: 2; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div style="background: #f0fdf4; border: 2px solid var(--ink); padding: 12px; box-shadow: 2px 2px 0px var(--ink);">
+            <div class="font-mono" style="font-size: 11px; font-weight: 700; color: #166534; margin-bottom: 6px;">✓ QUEDAN 100% HABILITADAS PARA EL PRÓXIMO CUATRI:</div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div style="background: #fff; border: 1px solid var(--ink); padding: 8px; font-size: 12px; font-weight: 700;">
+                [6] Algoritmo y Estructura de Datos <span class="font-mono" style="font-size: 10px; color: #52525b;">(1º Año, 2º Cuat)</span>
+              </div>
+              <div style="background: #fff; border: 1px solid var(--ink); padding: 8px; font-size: 12px; font-weight: 700;">
+                [7] Arquitectura de Computadoras <span class="font-mono" style="font-size: 10px; color: #52525b;">(1º Año, 2º Cuat)</span>
+              </div>
+            </div>
+          </div>
+          <div style="background: #eff6ff; border: 2px solid var(--ink); padding: 12px; box-shadow: 2px 2px 0px var(--ink);">
+            <div class="font-mono" style="font-size: 11px; font-weight: 700; color: #1e40af; margin-bottom: 6px;">⚡ SE ACERCAN (BAJAN CORRELATIVAS PENDIENTES):</div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div style="background: #fff; border: 1px solid var(--ink); padding: 8px; font-size: 12px; font-weight: 700;">
+                [11] Sistemas Operativos <span class="font-mono" style="font-size: 10px; color: #1e40af;">(Falta sólo rendir final de Algoritmos)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 2: LÍNEA DE TIEMPO DEL ITINERARIO POR CUATRIMESTRE -->
+      <section class="fanzine-card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 2px solid var(--ink); padding-bottom: 10px;">
+          <div>
+            <h3 class="font-display" style="font-size: 16px; text-transform: uppercase;">Itinerario de Cursada Sugerido</h3>
+            <p class="font-mono" style="font-size: 11px; color: #52525b;">Secuencia calculada período a período por impacto en cascada.</p>
+          </div>
+          <span class="font-mono" style="font-size: 11px; font-weight: 700; background: var(--lime); border: 2px solid var(--ink); padding: 4px 10px; box-shadow: 2px 2px 0px var(--ink);">
+            Estimación: 8 Cuatrimestres restantes
+          </span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <!-- Paso 1 -->
+          <div class="timeline-step">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+              <h4 class="font-display" style="font-size: 14px; text-transform: uppercase;">1º Cuatrimestre 2026 (Actual)</h4>
+              <span class="font-mono" style="font-size: 11px; font-weight: 700; background: #111; color: #fff; padding: 2px 8px;">16 hs/sem recomendadas</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+              <div class="fanzine-card-sm" style="padding: 10px;">
+                <div class="font-mono" style="font-size: 10px; color: #52525b;">[1] • 1º AÑO • 5 HS/SEM</div>
+                <div style="font-size: 12px; font-weight: 700; margin-top: 2px;">Análisis Matemático I</div>
+                <div class="fanzine-badge-magenta font-mono" style="font-size: 9px; padding: 1px 4px; display: inline-block; margin-top: 6px;">Atrasa 14 materias</div>
+              </div>
+              <div class="fanzine-card-sm" style="padding: 10px;">
+                <div class="font-mono" style="font-size: 10px; color: #52525b;">[2] • 1º AÑO • 5 HS/SEM</div>
+                <div style="font-size: 12px; font-weight: 700; margin-top: 2px;">Álgebra y Geometría Analítica</div>
+                <div class="fanzine-badge-magenta font-mono" style="font-size: 9px; padding: 1px 4px; display: inline-block; margin-top: 6px;">Atrasa 10 materias</div>
+              </div>
+              <div class="fanzine-card-sm" style="padding: 10px;">
+                <div class="font-mono" style="font-size: 10px; color: #52525b;">[5] • 1º AÑO • 3 HS/SEM</div>
+                <div style="font-size: 12px; font-weight: 700; margin-top: 2px;">Lógica y Estructuras Discretas</div>
+                <div class="fanzine-badge-magenta font-mono" style="font-size: 9px; padding: 1px 4px; display: inline-block; margin-top: 6px;">Atrasa 8 materias</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Paso 2 -->
+          <div class="timeline-step">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+              <h4 class="font-display" style="font-size: 14px; text-transform: uppercase;">2º Cuatrimestre 2026</h4>
+              <span class="font-mono" style="font-size: 11px; font-weight: 700; background: #111; color: #fff; padding: 2px 8px;">18 hs/sem recomendadas</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+              <div class="fanzine-card-sm" style="padding: 10px;">
+                <div class="font-mono" style="font-size: 10px; color: #52525b;">[6] • 1º AÑO • 5 HS/SEM</div>
+                <div style="font-size: 12px; font-weight: 700; margin-top: 2px;">Algoritmo y Estructura de Datos</div>
+                <div class="fanzine-badge-magenta font-mono" style="font-size: 9px; padding: 1px 4px; display: inline-block; margin-top: 6px;">Atrasa 12 materias</div>
+              </div>
+              <div class="fanzine-card-sm" style="padding: 10px;">
+                <div class="font-mono" style="font-size: 10px; color: #52525b;">[7] • 1º AÑO • 4 HS/SEM</div>
+                <div style="font-size: 12px; font-weight: 700; margin-top: 2px;">Arquitectura de Computadoras</div>
+                <div class="fanzine-badge-magenta font-mono" style="font-size: 9px; padding: 1px 4px; display: inline-block; margin-top: 6px;">Atrasa 7 materias</div>
+              </div>
+              <div class="fanzine-card-sm" style="padding: 10px; background: #fffdf5; border-style: dashed;">
+                <div class="font-mono" style="font-size: 10px; color: #b45309;">OPCIÓN CONDICIONAL</div>
+                <div style="font-size: 12px; font-weight: 700; margin-top: 2px;">Física I (Comisión nocturna)</div>
+                <span class="font-mono" style="font-size: 9px; color: #52525b;">Requiere excepción de cuatrimestre</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 3: ATAJOS Y EXCEPCIONES (3 BLOQUES DISTINTOS) -->
+      <section class="fanzine-card" style="padding: 20px;">
+        <div style="margin-bottom: 14px; border-bottom: 2px solid var(--ink); padding-bottom: 8px;">
+          <div class="fanzine-badge-magenta font-mono" style="display: inline-block; padding: 2px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase;">
+            REGULACIONES ACADÉMICAS
+          </div>
+          <h3 class="font-display" style="font-size: 16px; text-transform: uppercase; margin-top: 4px;">Atajos y Excepciones del Plan</h3>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
+          <!-- Bloque 1: Excepción de correlatividades / Adelanto de Nivel -->
+          <div style="background: #f9f6ee; border: 2px solid var(--ink); padding: 14px; box-shadow: 2px 2px 0px var(--ink); display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div class="font-mono" style="font-size: 10px; font-weight: 700; color: var(--magenta);">BLOQUE 1 • CORRELATIVAS</div>
+              <h4 class="font-display" style="font-size: 12px; text-transform: uppercase; margin: 4px 0;">Adelanto de Nivel (Último Año)</h4>
+              <p class="font-mono" style="font-size: 11px; color: #52525b; line-height: 1.4;">
+                Permite inscribirte a materias del 5º año si adeudás menos de 30 hs semanales de niveles inferiores.
+              </p>
+              <div style="margin-top: 10px; padding: 8px; background: #fff; border: 1px solid var(--ink); font-size: 11px; font-family: var(--font-mono);">
+                <strong>Estado:</strong> Te faltan 118 hs para activar esta excepción.
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloque 2: Candidatos a Cursado Condicional -->
+          <div style="background: #f9f6ee; border: 2px solid var(--ink); padding: 14px; box-shadow: 2px 2px 0px var(--ink); display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div class="font-mono" style="font-size: 10px; font-weight: 700; color: #15803d;">BLOQUE 2 • CONDICIONALIDAD</div>
+              <h4 class="font-display" style="font-size: 12px; text-transform: uppercase; margin: 4px 0;">Cursado Condicional (Falta 1 sola)</h4>
+              <p class="font-mono" style="font-size: 11px; color: #52525b; line-height: 1.4;">
+                Si estás en 4º o 5º año y te falta una única correlativa habilitante según la tabla cuatrimestral.
+              </p>
+              <div style="margin-top: 10px; padding: 8px; background: #fff; border: 1px solid var(--ink); font-size: 11px; font-family: var(--font-mono);">
+                <strong>Candidatos:</strong> 0 materias actualmente (disponible a partir de 4º año).
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloque 3: Materias con Comisión Compartida -->
+          <div style="background: #f9f6ee; border: 2px solid var(--ink); padding: 14px; box-shadow: 2px 2px 0px var(--ink); display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div class="font-mono" style="font-size: 10px; font-weight: 700; color: var(--blue);">BLOQUE 3 • CURSADO CRUZADO</div>
+              <h4 class="font-display" style="font-size: 12px; text-transform: uppercase; margin: 4px 0;">Comisión Compartida (11 Básicas)</h4>
+              <p class="font-mono" style="font-size: 11px; color: #52525b; line-height: 1.4;">
+                Materias comunes con otras carreras. Podés cursarlas en otros turnos o sedes sin trámite de equivalencia.
+              </p>
+              <div style="margin-top: 10px; padding: 8px; background: #fff; border: 1px solid var(--ink); font-size: 10px; font-family: var(--font-mono);">
+                Álgebra, Análisis I y II, Física I y II, Química, Inglés I y II, Economía, Legislación, Probabilidad.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 4: CRÉDITOS DE ELECTIVAS POR NIVEL -->
+      <section class="fanzine-card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 2px solid var(--ink); padding-bottom: 8px;">
+          <div>
+            <h3 class="font-display" style="font-size: 15px; text-transform: uppercase;">Bolsa de Créditos Electivas (3º a 5º Año)</h3>
+            <p class="font-mono" style="font-size: 11px; color: #52525b;">Horas requeridas por nivel. Las electivas no tienen materias fijas obligatorias.</p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
+          <div style="background: #fff; border: 2px solid var(--ink); padding: 12px; box-shadow: 2px 2px 0px var(--ink);">
+            <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; font-weight: 700;">
+              <span>3º AÑO</span>
+              <span>0 / 6 hs aprobadas</span>
+            </div>
+            <div style="width: 100%; height: 8px; background: #e4e4e7; border: 1px solid var(--ink); margin: 8px 0;">
+              <div style="width: 0%; height: 100%; background: var(--lime);"></div>
+            </div>
+            <div class="font-mono" style="font-size: 10px; color: #52525b;">Pool: Redes Avanzadas, Gestión de Datos...</div>
+          </div>
+
+          <div style="background: #fff; border: 2px solid var(--ink); padding: 12px; box-shadow: 2px 2px 0px var(--ink);">
+            <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; font-weight: 700;">
+              <span>4º AÑO</span>
+              <span>0 / 8 hs aprobadas</span>
+            </div>
+            <div style="width: 100%; height: 8px; background: #e4e4e7; border: 1px solid var(--ink); margin: 8px 0;">
+              <div style="width: 0%; height: 100%; background: var(--lime);"></div>
+            </div>
+            <div class="font-mono" style="font-size: 10px; color: #52525b;">Pool: Seguridad Ofensiva, Cloud Computing...</div>
+          </div>
+
+          <div style="background: #fff; border: 2px solid var(--ink); padding: 12px; box-shadow: 2px 2px 0px var(--ink);">
+            <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; font-weight: 700;">
+              <span>5º AÑO</span>
+              <span>0 / 10 hs aprobadas</span>
+            </div>
+            <div style="width: 100%; height: 8px; background: #e4e4e7; border: 1px solid var(--ink); margin: 8px 0;">
+              <div style="width: 0%; height: 100%; background: var(--lime);"></div>
+            </div>
+            <div class="font-mono" style="font-size: 10px; color: #52525b;">Pool: Inteligencia Artificial, Robótica...</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

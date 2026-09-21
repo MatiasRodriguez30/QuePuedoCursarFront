@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Wireframe CAMINO - Mobile (360px)</title>
+  <style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;900&family=Dela+Gothic+One&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+  --font-display: 'Dela Gothic One', cursive;
+  --font-sans: 'Archivo', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+  --paper: #f4f0e6;
+  --ink: #111111;
+  --lime: #ccff00;
+  --magenta: #ff1464;
+  --blue: #0047ff;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  background-image: radial-gradient(rgba(17, 17, 17, 0.05) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+  word-spacing: 0.18em;
+}
+
+.font-mono { font-family: var(--font-mono); }
+
+.fanzine-card {
+  background: #ffffff;
+  border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0px var(--ink);
+}
+
+.fanzine-card-sm {
+  background: #ffffff;
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0px var(--ink);
+}
+
+.fanzine-badge-lime {
+  background: var(--lime);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+}
+
+.fanzine-badge-magenta {
+  background: var(--magenta);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+}
+
+.fanzine-badge-ink {
+  background: var(--ink);
+  color: var(--lime);
+}
+
+.fanzine-badge-blue {
+  background: var(--blue);
+  color: #ffffff;
+  border: 1px solid var(--ink);
+}
+
+.btn-lime {
+  background: var(--lime);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0px var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.btn-white {
+  background: #ffffff;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0px var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* Timeline specific */
+.timeline-step {
+  position: relative;
+  padding-left: 24px;
+  border-left: 3px solid var(--ink);
+}
+.timeline-step::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 0px;
+  width: 13px;
+  height: 13px;
+  background: var(--lime);
+  border: 2px solid var(--ink);
+}
+</style>
+</head>
+<body style="padding: 10px; max-width: 360px; margin: 0 auto; padding-bottom: 70px;">
+  <!-- Header Mobile -->
+  <header style="background: #f4f0e6; border-bottom: 2px solid var(--ink); padding: 8px 10px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <div style="width: 28px; height: 28px; background: var(--lime); border: 2px solid var(--ink); display: flex; align-items: center; justify-content: center;">
+        <img src="../../src/assets/tito/tito-cafe.webp" style="width: 22px; height: 22px; object-fit: contain;">
+      </div>
+      <span class="font-display" style="font-size: 13px; font-weight: 700;">QPC</span>
+    </div>
+    <div style="display: flex; gap: 6px; align-items: center;">
+      <span class="font-mono" style="font-size: 10px; font-weight: 700; background: #fff; border: 2px solid var(--ink); padding: 2px 6px; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Sistemas</span>
+      <span class="font-mono" style="font-size: 9px; font-weight: 700; background: var(--lime); border: 2px solid var(--ink); padding: 2px 4px;">● VIVO</span>
+    </div>
+  </header>
+
+  <!-- Banner Camino -->
+  <div class="fanzine-card" style="padding: 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <span class="fanzine-badge-ink font-mono" style="font-size: 8px; padding: 1px 4px; display: inline-block;">ITINERARIO</span>
+      <h2 class="font-display" style="font-size: 14px; text-transform: uppercase; margin-top: 2px;">Camino Óptimo</h2>
+      <p class="font-mono" style="font-size: 10px; color: #52525b;">8 cuatrimestres restantes estimados</p>
+    </div>
+    <div style="width: 48px; height: 48px; background: var(--lime); border: 2px solid var(--ink); padding: 2px; display: flex; align-items: center; justify-content: center;">
+      <img src="../../src/assets/tito/tito-lupa.webp" style="width: 100%; height: 100%; object-fit: contain;">
+    </div>
+  </div>
+
+  <!-- Predicción Cursando Mobile -->
+  <div class="fanzine-card" style="padding: 12px; border-left: 5px solid var(--blue); margin-bottom: 12px;">
+    <div class="font-mono" style="font-size: 9px; font-weight: 700; color: var(--blue);">★ SI APROBÁS LO QUE CURSÁS:</div>
+    <h3 class="font-display" style="font-size: 12px; text-transform: uppercase; margin-top: 2px;">Desbloqueo inmediato</h3>
+    <div style="margin-top: 6px; background: #f0fdf4; border: 1px solid var(--ink); padding: 6px; font-size: 11px; font-weight: 700;">
+      [6] Algoritmos y Estructuras <span class="font-mono" style="font-size: 9px; color: #166534;">(Habilitada)</span>
+    </div>
+  </div>
+
+  <!-- Itinerario Línea de Tiempo Mobile -->
+  <div class="fanzine-card" style="padding: 12px; margin-bottom: 12px;">
+    <h3 class="font-display" style="font-size: 13px; text-transform: uppercase; margin-bottom: 8px;">Itinerario sugerido</h3>
+    
+    <div class="timeline-step" style="padding-left: 14px; margin-bottom: 12px;">
+      <div style="font-size: 11px; font-weight: 700; font-family: var(--font-display);">1º CUAT. 2026 (ACTUAL)</div>
+      <div class="font-mono" style="font-size: 9px; color: #52525b; margin-bottom: 6px;">16 hs semanales</div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div class="fanzine-card-sm" style="padding: 6px 8px;">
+          <div style="font-size: 11px; font-weight: 700;">Análisis Matemático I</div>
+          <span class="fanzine-badge-magenta font-mono" style="font-size: 8px; padding: 1px 3px;">Atrasa 14 materias</span>
+        </div>
+        <div class="fanzine-card-sm" style="padding: 6px 8px;">
+          <div style="font-size: 11px; font-weight: 700;">Álgebra y Geometría</div>
+          <span class="fanzine-badge-magenta font-mono" style="font-size: 8px; padding: 1px 3px;">Atrasa 10 materias</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="timeline-step" style="padding-left: 14px;">
+      <div style="font-size: 11px; font-weight: 700; font-family: var(--font-display);">2º CUAT. 2026</div>
+      <div class="font-mono" style="font-size: 9px; color: #52525b; margin-bottom: 6px;">18 hs semanales</div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div class="fanzine-card-sm" style="padding: 6px 8px;">
+          <div style="font-size: 11px; font-weight: 700;">Algoritmos y Estructura</div>
+          <span class="fanzine-badge-magenta font-mono" style="font-size: 8px; padding: 1px 3px;">Atrasa 12 materias</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Atajos y Excepciones Mobile (Acordeón o tarjetas verticales) -->
+  <div class="fanzine-card" style="padding: 12px; margin-bottom: 12px;">
+    <h3 class="font-display" style="font-size: 13px; text-transform: uppercase; margin-bottom: 8px;">Atajos y Excepciones</h3>
+    
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="background: #f9f6ee; border: 1.5px solid var(--ink); padding: 8px;">
+        <span class="font-mono" style="font-size: 9px; font-weight: 700; color: var(--magenta);">1. ADELANTO DE NIVEL</span>
+        <div style="font-size: 11px; font-weight: 700;">Excepción último año</div>
+        <div class="font-mono" style="font-size: 10px; color: #52525b; margin-top: 2px;">Faltan 118 hs para activar</div>
+      </div>
+      <div style="background: #f9f6ee; border: 1.5px solid var(--ink); padding: 8px;">
+        <span class="font-mono" style="font-size: 9px; font-weight: 700; color: #15803d;">2. CONDICIONALIDAD</span>
+        <div style="font-size: 11px; font-weight: 700;">Cursado condicional</div>
+        <div class="font-mono" style="font-size: 10px; color: #52525b; margin-top: 2px;">0 candidatas ahora (aplica en 4º/5º)</div>
+      </div>
+      <div style="background: #f9f6ee; border: 1.5px solid var(--ink); padding: 8px;">
+        <span class="font-mono" style="font-size: 9px; font-weight: 700; color: var(--blue);">3. COMISIÓN COMPARTIDA</span>
+        <div style="font-size: 11px; font-weight: 700;">11 materias básicas cruzadas</div>
+        <div class="font-mono" style="font-size: 10px; color: #52525b; margin-top: 2px;">Álgebra, Análisis, Física, etc.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Electivas Mobile -->
+  <div class="fanzine-card" style="padding: 12px;">
+    <h3 class="font-display" style="font-size: 13px; text-transform: uppercase; margin-bottom: 6px;">Créditos de Electivas</h3>
+    <div style="font-size: 10px; font-family: var(--font-mono); color: #52525b; margin-bottom: 8px;">0 de 24 hs totales aprobadas</div>
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <div style="background: #fff; border: 1px solid var(--ink); padding: 6px; font-size: 10px; font-family: var(--font-mono);">
+        <strong>3º Año:</strong> 0 / 6 hs
+      </div>
+      <div style="background: #fff; border: 1px solid var(--ink); padding: 6px; font-size: 10px; font-family: var(--font-mono);">
+        <strong>4º Año:</strong> 0 / 8 hs
+      </div>
+      <div style="background: #fff; border: 1px solid var(--ink); padding: 6px; font-size: 10px; font-family: var(--font-mono);">
+        <strong>5º Año:</strong> 0 / 10 hs
+      </div>
+    </div>
+  </div>
+
+  <!-- Barra de navegación inferior Mobile -->
+  <nav style="position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 2px solid var(--ink); display: flex; justify-content: space-around; padding: 8px 4px; box-shadow: 0px -2px 0px var(--ink);">
+    <button class="font-mono" style="font-size: 9px; font-weight: 700; border: none; background: none;">HOY</button>
+    <button class="font-mono" style="font-size: 9px; font-weight: 700; border: none; background: none;">CARRERA</button>
+    <button class="font-mono" style="font-size: 9px; font-weight: 700; background: var(--ink); color: var(--lime); padding: 4px 8px;">CAMINO</button>
+    <button class="font-mono" style="font-size: 9px; font-weight: 700; border: none; background: none;">AGENDA</button>
+  </nav>
+</body>
+</html>

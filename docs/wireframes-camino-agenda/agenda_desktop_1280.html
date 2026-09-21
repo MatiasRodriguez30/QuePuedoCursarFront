@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Wireframe AGENDA - Desktop (1280px)</title>
+  <style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;900&family=Dela+Gothic+One&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+  --font-display: 'Dela Gothic One', cursive;
+  --font-sans: 'Archivo', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+  --paper: #f4f0e6;
+  --ink: #111111;
+  --lime: #ccff00;
+  --magenta: #ff1464;
+  --blue: #0047ff;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  background-image: radial-gradient(rgba(17, 17, 17, 0.05) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+  word-spacing: 0.18em;
+}
+
+.font-mono { font-family: var(--font-mono); }
+
+.fanzine-card {
+  background: #ffffff;
+  border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0px var(--ink);
+}
+
+.fanzine-card-sm {
+  background: #ffffff;
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0px var(--ink);
+}
+
+.fanzine-badge-lime {
+  background: var(--lime);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+}
+
+.fanzine-badge-magenta {
+  background: var(--magenta);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+}
+
+.fanzine-badge-ink {
+  background: var(--ink);
+  color: var(--lime);
+}
+
+.fanzine-badge-blue {
+  background: var(--blue);
+  color: #ffffff;
+  border: 1px solid var(--ink);
+}
+
+.btn-lime {
+  background: var(--lime);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0px var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.btn-white {
+  background: #ffffff;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0px var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* Timeline specific */
+.timeline-step {
+  position: relative;
+  padding-left: 24px;
+  border-left: 3px solid var(--ink);
+}
+.timeline-step::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 0px;
+  width: 13px;
+  height: 13px;
+  background: var(--lime);
+  border: 2px solid var(--ink);
+}
+</style>
+</head>
+<body style="padding: 24px; max-width: 1280px; margin: 0 auto;">
+  <!-- Header simulado -->
+  <header style="background: #f4f0e6; border-bottom: 2px solid var(--ink); padding: 12px 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="width: 36px; height: 36px; background: var(--lime); border: 2px solid var(--ink); box-shadow: 2px 2px 0px var(--ink); display: flex; align-items: center; justify-content: center;">
+        <img src="../../src/assets/tito/tito-cafe.webp" style="width: 30px; height: 30px; object-fit: contain;">
+      </div>
+      <div>
+        <h1 class="font-display" style="font-size: 16px; font-weight: 700; text-transform: uppercase;">Qué Puedo Cursar</h1>
+        <span class="font-mono" style="font-size: 9px; font-weight: 700; color: #52525b; letter-spacing: 2px;">FANZINE V.03</span>
+      </div>
+    </div>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <span class="font-mono" style="font-size: 11px; font-weight: 700; background: #fff; border: 2px solid var(--ink); padding: 4px 10px; box-shadow: 2px 2px 0px var(--ink);">Ingeniería en Sistemas</span>
+      <span class="font-mono" style="font-size: 10px; font-weight: 700; background: var(--lime); border: 2px solid var(--ink); padding: 4px 8px; box-shadow: 2px 2px 0px var(--ink);">● EN VIVO</span>
+      <span class="font-mono" style="font-size: 11px; font-weight: 700; background: #fff; border: 2px solid var(--ink); padding: 4px 10px; box-shadow: 2px 2px 0px var(--ink);">test@ejemplo.com (Admin)</span>
+    </div>
+  </header>
+
+  <div style="display: flex; gap: 24px;">
+    <!-- Rail lateral -->
+    <aside style="width: 200px; background: #eee8d8; border: 2px solid var(--ink); padding: 16px; display: flex; flex-direction: column; gap: 10px; height: fit-content; box-shadow: 3px 3px 0px var(--ink);">
+      <div class="font-mono" style="font-size: 10px; font-weight: 700; color: #71717a;">SECCIONES</div>
+      <div style="padding: 10px; border: 2px solid var(--ink); font-size: 11px; font-weight: 700; font-family: var(--font-mono); background: #fff; box-shadow: 2px 2px 0px var(--ink);">HOY (5)</div>
+      <div style="padding: 10px; border: 2px solid var(--ink); font-size: 11px; font-weight: 700; font-family: var(--font-mono); background: #fff; box-shadow: 2px 2px 0px var(--ink);">MI CARRERA</div>
+      <div style="padding: 10px; border: 2px solid var(--ink); font-size: 11px; font-weight: 700; font-family: var(--font-mono); background: #fff; box-shadow: 2px 2px 0px var(--ink);">CAMINO</div>
+      <div style="padding: 10px; border: 2px solid var(--ink); font-size: 11px; font-weight: 700; font-family: var(--font-mono); background: var(--ink); color: var(--lime); box-shadow: 3px 3px 0px var(--magenta);">AGENDA ★</div>
+    </aside>
+
+    <!-- Contenido Agenda -->
+    <main style="flex: 1; display: flex; flex-direction: column; gap: 20px;">
+      <!-- Barra superior Agenda: selector semana/mes, alta admin -->
+      <div class="fanzine-card" style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <h2 class="font-display" style="font-size: 18px; text-transform: uppercase;">Agenda de Cursada</h2>
+          <div style="display: flex; gap: 4px; background: #f4f0e6; border: 2px solid var(--ink); padding: 2px;">
+            <button class="font-mono" style="font-size: 11px; font-weight: 700; background: var(--ink); color: var(--lime); border: none; padding: 4px 10px; cursor: pointer;">
+              Semana (7 días)
+            </button>
+            <button class="font-mono" style="font-size: 11px; font-weight: 700; background: transparent; border: none; padding: 4px 10px; cursor: pointer;">
+              Mes
+            </button>
+          </div>
+          <span class="font-mono" style="font-size: 11px; font-weight: 700; color: #52525b;">23 de Marzo - 29 de Marzo, 2026</span>
+        </div>
+
+        <!-- Botón Alta Admin -->
+        <button class="btn-lime" style="padding: 8px 16px; font-size: 11px; display: flex; align-items: center; gap: 6px;">
+          <span>+ Nuevo Evento (Admin)</span>
+        </button>
+      </div>
+
+      <!-- Leyenda visual de eventos: propio vs importado/oficial -->
+      <div style="display: flex; gap: 16px; font-family: var(--font-mono); font-size: 11px; font-weight: 700;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="width: 12px; height: 12px; background: var(--lime); border: 1.5px solid var(--ink); display: inline-block;"></span>
+          <span>Evento Propio / Cátedra</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="width: 12px; height: 12px; background: var(--magenta); border: 1.5px solid var(--ink); display: inline-block;"></span>
+          <span>Evento Oficial / Calendario Institucional</span>
+        </div>
+      </div>
+
+      <!-- VISTA SEMANA DE 7 DÍAS (LUNES A DOMINGO) -->
+      <div class="fanzine-card" style="padding: 16px; overflow-x: auto;">
+        <div style="display: grid; grid-template-columns: repeat(7, minmax(130px, 1fr)); gap: 10px;">
+          <!-- Lunes 23 -->
+          <div style="background: #f9f6ee; border: 2px solid var(--ink); padding: 8px; min-height: 280px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="border-bottom: 2px solid var(--ink); padding-bottom: 4px; display: flex; justify-content: space-between; align-items: baseline;">
+              <span class="font-display" style="font-size: 11px;">LUN 23</span>
+              <span class="font-mono" style="font-size: 9px; color: #52525b;">Marzo</span>
+            </div>
+            <!-- Evento propio -->
+            <div style="background: #fff; border: 2px solid var(--ink); box-shadow: 2px 2px 0px var(--ink); padding: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span class="fanzine-badge-lime font-mono" style="font-size: 8px; padding: 1px 4px; font-weight: 700;">PROPIO</span>
+                <span class="font-mono" style="font-size: 9px; color: #52525b;">18:00 hs</span>
+              </div>
+              <div style="font-size: 11px; font-weight: 700; margin-top: 4px;">Consulta Análisis Matemático I</div>
+              <div class="font-mono" style="font-size: 9px; color: #71717a; margin-top: 2px;">Aula 204 • Prof. Gómez</div>
+            </div>
+          </div>
+
+          <!-- Martes 24 -->
+          <div style="background: #f9f6ee; border: 2px solid var(--ink); padding: 8px; min-height: 280px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="border-bottom: 2px solid var(--ink); padding-bottom: 4px; display: flex; justify-content: space-between; align-items: baseline;">
+              <span class="font-display" style="font-size: 11px;">MAR 24</span>
+              <span class="fanzine-badge-magenta font-mono" style="font-size: 8px; padding: 1px 3px;">FERIADO</span>
+            </div>
+            <div style="background: #fff0f5; border: 2px solid var(--ink); box-shadow: 2px 2px 0px var(--ink); padding: 8px;">
+              <span class="fanzine-badge-magenta font-mono" style="font-size: 8px; padding: 1px 4px; font-weight: 700;">OFICIAL</span>
+              <div style="font-size: 11px; font-weight: 700; margin-top: 4px;">Feriado Nacional Memoria</div>
+              <p class="font-mono" style="font-size: 9px; color: #52525b; margin-top: 2px;">Sin actividad académica</p>
+            </div>
+          </div>
+
+          <!-- Miércoles 25 -->
+          <div style="background: #f9f6ee; border: 2px solid var(--ink); padding: 8px; min-height: 280px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="border-bottom: 2px solid var(--ink); padding-bottom: 4px; display: flex; justify-content: space-between; align-items: baseline;">
+              <span class="font-display" style="font-size: 11px;">MIÉ 25</span>
+              <span class="font-mono" style="font-size: 9px; color: #52525b;">Hoy</span>
+            </div>
+            <!-- Evento con texto largo colapsable -->
+            <div style="background: #fff; border: 2px solid var(--ink); box-shadow: 2px 2px 0px var(--ink); padding: 8px;">
+              <span class="fanzine-badge-lime font-mono" style="font-size: 8px; padding: 1px 4px; font-weight: 700;">PROPIO</span>
+              <div style="font-size: 11px; font-weight: 700; margin-top: 4px;">Entrega TP Álgebra Vectorial</div>
+              <div class="font-mono" style="font-size: 9px; color: #52525b; margin-top: 3px; line-height: 1.3;">
+                Resolución de sistemas de ecuaciones lineales por eliminación gaussiana y cálculo de determinantes.
+              </div>
+              <button style="background: none; border: none; color: var(--blue); font-family: var(--font-mono); font-size: 9px; font-weight: 700; cursor: pointer; margin-top: 4px; text-decoration: underline;">
+                [- Colapsar detalle]
+              </button>
+            </div>
+          </div>
+
+          <!-- Jueves 26 -->
+          <div style="background: #f9f6ee; border: 2px solid var(--ink); padding: 8px; min-height: 280px;">
+            <div style="border-bottom: 2px solid var(--ink); padding-bottom: 4px; display: flex; justify-content: space-between; align-items: baseline;">
+              <span class="font-display" style="font-size: 11px;">JUE 26</span>
+            </div>
+            <div class="font-mono" style="font-size: 10px; color: #a1a1aa; margin-top: 20px; text-align: center;">Sin eventos</div>
+          </div>
+
+          <!-- Viernes 27 -->
+          <div style="background: #f9f6ee; border: 2px solid var(--ink); padding: 8px; min-height: 280px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="border-bottom: 2px solid var(--ink); padding-bottom: 4px; display: flex; justify-content: space-between; align-items: baseline;">
+              <span class="font-display" style="font-size: 11px;">VIE 27</span>
+            </div>
+            <div style="background: #fff; border: 2px solid var(--ink); box-shadow: 2px 2px 0px var(--ink); padding: 8px;">
+              <span class="fanzine-badge-lime font-mono" style="font-size: 8px; padding: 1px 4px; font-weight: 700;">PROPIO</span>
+              <div style="font-size: 11px; font-weight: 700; margin-top: 4px;">Laboratorio Lógica y Estructuras</div>
+              <span class="font-mono" style="font-size: 9px; color: #52525b;">19:00 a 21:00 hs</span>
+            </div>
+          </div>
+
+          <!-- Sábado 28 -->
+          <div style="background: #fff; border: 2px solid var(--ink); padding: 8px; min-height: 280px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="border-bottom: 2px solid var(--ink); padding-bottom: 4px; display: flex; justify-content: space-between; align-items: baseline;">
+              <span class="font-display" style="font-size: 11px; color: var(--magenta);">SÁB 28</span>
+              <span class="font-mono" style="font-size: 9px; color: #52525b;">Fin de sem.</span>
+            </div>
+            <div style="background: #fff0f5; border: 2px solid var(--ink); box-shadow: 2px 2px 0px var(--ink); padding: 8px;">
+              <span class="fanzine-badge-magenta font-mono" style="font-size: 8px; padding: 1px 4px; font-weight: 700;">OFICIAL</span>
+              <div style="font-size: 11px; font-weight: 700; margin-top: 4px;">Turno Especial de Examen Final</div>
+              <span class="font-mono" style="font-size: 9px; color: #991b1b;">09:00 hs • Bedelía Central</span>
+            </div>
+          </div>
+
+          <!-- Domingo 29 -->
+          <div style="background: #fff; border: 2px solid var(--ink); padding: 8px; min-height: 280px;">
+            <div style="border-bottom: 2px solid var(--ink); padding-bottom: 4px; display: flex; justify-content: space-between; align-items: baseline;">
+              <span class="font-display" style="font-size: 11px; color: var(--magenta);">DOM 29</span>
+            </div>
+            <div class="font-mono" style="font-size: 10px; color: #a1a1aa; margin-top: 20px; text-align: center;">Día libre</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
