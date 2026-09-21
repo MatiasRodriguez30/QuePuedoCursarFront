@@ -1,101 +1,98 @@
 @import "tailwindcss";
 
-@import "@fontsource/archivo/400.css";
-@import "@fontsource/archivo/500.css";
-@import "@fontsource/archivo/600.css";
-@import "@fontsource/archivo/700.css";
-@import "@fontsource/jetbrains-mono/400.css";
-@import "@fontsource/jetbrains-mono/600.css";
+/* Autoalojamiento exclusivo de subsets latin para optimizar peso del bundle */
+@import "@fontsource/dela-gothic-one/latin-400.css";
+@import "@fontsource/space-mono/latin-400.css";
+@import "@fontsource/space-mono/latin-700.css";
+@import "@fontsource/archivo/latin-400.css";
+@import "@fontsource/archivo/latin-600.css";
+@import "@fontsource/archivo/latin-700.css";
 
 @theme {
+  --font-display: "Dela Gothic One", cursive;
   --font-sans: "Archivo", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-mono: "Space Mono", monospace;
 
-  /* Terracota / Naranja Zine (Marca personal cálida) */
-  --color-brand-50: #fff7ed;
-  --color-brand-100: #ffedd5;
-  --color-brand-200: #fed7aa;
-  --color-brand-300: #fdba74;
-  --color-brand-400: #fb923c;
-  --color-brand-500: #f97316;
-  --color-brand-600: #ea580c;
-  --color-brand-700: #c2410c;
-  --color-brand-800: #9a3412;
-  --color-brand-900: #7c2d12;
-  --color-brand-950: #431407;
-
-  /* Superficies de Libreta / Papel cálido */
-  --color-paper-base: #fbf9f4;
-  --color-paper-card: #ffffff;
-  --color-paper-muted: #f4efe6;
-  --color-paper-subtle: #ede6d8;
-  --color-paper-border: #e2dcce;
-  --color-paper-border-strong: #78716c;
-
-  /* Tinta de escritura */
-  --color-ink-dark: #1a1916;
-  --color-ink-medium: #44403c;
-  --color-ink-muted: #57534e;
+  /* Paleta Fanzine Risograph */
+  --color-riso-paper: #f4f0e6;
+  --color-riso-card: #ffffff;
+  --color-riso-ink: #111111;
+  --color-riso-pink: #ff1464;
+  --color-riso-lime: #ccff00;
+  --color-riso-blue: #0047ff;
+  --color-riso-gray-bg: #e4e4e7;
+  --color-riso-gray-text: #27272a;
+  --color-riso-border: #111111;
 }
 
 html, body, #root {
   height: 100%;
-  background-color: #fbf9f4;
-  color: #1a1916;
+  background-color: #f4f0e6;
+  color: #111111;
+  font-family: var(--font-sans);
 }
 
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #f4f0e6;
 }
 
-/* Scrollbar estilo grafito suave sobre papel */
-::-webkit-scrollbar { width: 7px; height: 7px; }
-::-webkit-scrollbar-track { background: #f4efe6; }
-::-webkit-scrollbar-thumb { background: #d6cebf; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #b8ad99; }
+/* Textura sutil de fotocopiadora risograph en canvas general */
+.bg-riso-halftone {
+  background-image: radial-gradient(rgba(17, 17, 17, 0.05) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
 
-/* Foco visible de alta accesibilidad para navegación por teclado */
+/* Sombra sólida de fanzine / fotocopiadora */
+.shadow-fanzine-sm {
+  box-shadow: 2px 2px 0px #111111;
+}
+.shadow-fanzine {
+  box-shadow: 3px 3px 0px #111111;
+}
+.shadow-fanzine-md {
+  box-shadow: 4px 4px 0px #111111;
+}
+.shadow-fanzine-lg {
+  box-shadow: 6px 6px 0px #111111;
+}
+
+/* Scrollbar estilo tinta */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #e8e2d5; }
+::-webkit-scrollbar-thumb { background: #111111; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #ff1464; }
+
+/* Foco visible estricto para accesibilidad */
 :focus-visible {
-  outline: 2px solid #ea580c;
-  outline-offset: 2px;
+  outline: 3px solid #ff1464 !important;
+  outline-offset: 2px !important;
 }
 
-/* Estilos de tarjeta y panel de cuaderno universitario:
-   Sólidos, definidos, sin vidrios difuminados ni traslúcidos. */
-.notebook-panel {
-  background-color: #ffffff;
-  border: 1px solid #e2dcce;
-  box-shadow: 0 1px 3px rgba(26, 25, 22, 0.04), 0 1px 2px rgba(26, 25, 22, 0.02);
-}
-
-.notebook-card {
-  background-color: #ffffff;
-  border: 1.5px solid #e2dcce;
-  box-shadow: 0 1px 2px rgba(26, 25, 22, 0.04);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.notebook-card:hover {
-  border-color: #78716c;
-}
-
-/* Sello / Sticker entintado con soporte para prefers-reduced-motion */
-@keyframes stamp-pop {
-  0% { transform: scale(0.96); }
-  50% { transform: scale(1.02); }
-  100% { transform: scale(1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .stamp-pop-animation {
-    animation: none !important;
-    transition: none !important;
+/* Animación CLACK de sello al aprobar (respetando prefers-reduced-motion) */
+@keyframes clack-stamp {
+  0% {
+    transform: scale(1.3) rotate(-3deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.95) rotate(1deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(-1.5deg);
+    opacity: 1;
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .stamp-pop-animation {
-    animation: stamp-pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+.stamp-clack-animation {
+  animation: clack-stamp 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stamp-clack-animation {
+    animation: none !important;
+    transform: none !important;
   }
 }
