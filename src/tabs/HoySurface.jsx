@@ -105,14 +105,12 @@ export default function HoySurface({
       }
     }
 
-    const bloqueadas = totalObligatorias - aprobadas - regulares - cursando
     const porcentaje = Math.round((aprobadas / totalObligatorias) * 100)
 
     return {
       aprobadas,
       regulares,
       cursando,
-      bloqueadas: Math.max(0, bloqueadas),
       horasAprobadas,
       horasTotal,
       porcentaje,
@@ -152,6 +150,24 @@ export default function HoySurface({
   }, [ctx])
 
   const listasVisibles = verMasListas ? materiasListas : materiasListas.slice(0, 4)
+
+  // "Bloqueadas": obligatorias sin cursar a las que todavía les faltan correlativas.
+  // Van primero las que están más cerca de destrabarse (menos requisitos pendientes).
+  const [verMasBloqueadas, setVerMasBloqueadas] = useState(false)
+  const materiasBloqueadas = useMemo(() => {
+    return obligatorias
+      .filter(m => (ctx.estadosMap[m.id] || 'NO_CURSADA') === 'NO_CURSADA')
+      .map(m => ({ materia: m, req: checkCursadaRequirements(m.id, ctx) }))
+      .filter(({ req }) => !req.puede)
+      .map(({ materia, req }) => ({
+        ...materia,
+        pendientes: req.pendientes,
+        cascada: computeImpactoCascada(materia.id, ctx),
+      }))
+      .sort((a, b) => a.pendientes.length - b.pendientes.length || (b.cascada.cantidad || 0) - (a.cascada.cantidad || 0))
+  }, [obligatorias, ctx])
+  const bloqueadasVisibles = verMasBloqueadas ? materiasBloqueadas : materiasBloqueadas.slice(0, 4)
+  const listasObligatorias = materiasListas.filter(m => !esElectiva(m)).length
 
   // 2. "Finales pendientes": materias en estado REGULAR
   const finalesPendientes = useMemo(() => {
@@ -245,9 +261,12 @@ export default function HoySurface({
           <span className="px-2 py-1 bg-[#0047ff] text-white border border-[#111111]">
             ⚡ {metricas.cursando} Cursando
           </span>
-          <span className="px-2 py-1 bg-[#27272a] text-[#a1a1aa] border border-[#52525b] flex items-center gap-1">
+          <span className="px-2 py-1 bg-[#ff1464] text-[#111111] border border-[#111111]">
+            ▸ {listasObligatorias} Listas
+          </span>
+          <span className="px-2 py-1 bg-[#27272a] text-[#d4d4d8] border border-[#52525b] flex items-center gap-1">
             <Lock className="w-3 h-3" aria-hidden="true" />
-            <span>{metricas.bloqueadas} Bloqueadas</span>
+            <span>{materiasBloqueadas.length} Bloqueadas</span>
           </span>
         </div>
       </section>
@@ -363,6 +382,87 @@ export default function HoySurface({
               className="text-xs font-mono font-bold uppercase text-[#111111] hover:bg-[#fff9db] px-3 py-1.5 border-2 border-[#111111] shadow-[2px_2px_0px_#111111] cursor-pointer"
             >
               {verMasListas ? 'Mostrar menos' : `Ver las ${materiasListas.length} listas`}
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* ── BLOQUEADAS: QUÉ LE FALTA A CADA UNA ──────────────────────────────── */}
+      <section className="space-y-3" aria-labelledby="hoy-bloqueadas-titulo">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="bg-[#111111] text-white px-2 py-0.5 text-xs font-mono font-bold uppercase rotate-[-1deg] flex items-center gap-1">
+              <Lock className="w-3 h-3" aria-hidden="true" />
+              Bloqueadas ({materiasBloqueadas.length})
+            </span>
+            <h2 id="hoy-bloqueadas-titulo" className="font-display text-sm sm:text-base font-bold uppercase text-[#111111]">
+              Qué te falta
+            </h2>
+          </div>
+          <span className="text-[10px] font-mono font-bold uppercase text-[#52525b] hidden sm:inline">
+            Primero las más cerca de destrabarse
+          </span>
+        </div>
+
+        {materiasBloqueadas.length === 0 ? (
+          <div className="bg-white border-2 border-[#111111] p-6 text-center shadow-fanzine-sm">
+            <TitoAvatar variant="festejo" className="w-14 h-14 mx-auto mb-2" />
+            <p className="font-display text-sm font-bold uppercase text-[#111111]">No te queda ninguna materia bloqueada</p>
+            <p className="text-xs font-mono text-[#52525b] mt-1">
+              Todo lo que no cursaste todavía ya tiene las correlativas al día.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {bloqueadasVisibles.map(m => (
+              <div key={m.id} className="bg-[#f4f0e6] border-2 border-[#111111] shadow-fanzine p-3.5 flex flex-col justify-between">
+                <div>
+                  <div className="text-[10px] font-mono font-bold text-[#52525b]">
+                    {m.codigo} • {m.anio}º AÑO • {m.horas_semanales || 4} HS/SEM
+                  </div>
+                  <h3 className="text-sm font-bold text-[#111111] mt-0.5 leading-tight">{m.nombre}</h3>
+
+                  <ul className="mt-2.5 space-y-1.5" aria-label={`Requisitos pendientes de ${m.nombre}`}>
+                    {m.pendientes.map((p, i) => (
+                      <li key={i} className="flex items-start gap-1.5 text-[11px] font-mono text-[#111111] leading-tight bg-white border border-[#111111] p-1.5">
+                        <Lock className="w-3 h-3 shrink-0 mt-0.5" aria-hidden="true" />
+                        <span>
+                          <strong>{p.exige}</strong> de <strong>{p.materia}</strong>
+                          <span className="text-[#52525b]"> (hoy: {p.actual})</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-3 pt-2.5 border-t border-[#111111] flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-mono font-bold uppercase text-[#111111]">
+                    {m.pendientes.length === 1 ? 'Te falta 1 correlativa' : `Te faltan ${m.pendientes.length} correlativas`}
+                    {m.cascada.cantidad > 0 ? ` · libera ${m.cascada.cantidad}` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onNavigateToCarrera(m.id)}
+                    className="text-xs font-mono font-bold text-[#111111] hover:text-[#ff1464] underline underline-offset-2 flex items-center gap-1 cursor-pointer shrink-0"
+                  >
+                    <span>Ver ficha</span>
+                    <ArrowRight className="w-3 h-3" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {materiasBloqueadas.length > 4 && (
+          <div className="text-center pt-1">
+            <button
+              type="button"
+              onClick={() => setVerMasBloqueadas(prev => !prev)}
+              aria-expanded={verMasBloqueadas}
+              className="text-xs font-mono font-bold uppercase text-[#111111] hover:bg-[#fff9db] px-3 py-1.5 border-2 border-[#111111] shadow-[2px_2px_0px_#111111] cursor-pointer"
+            >
+              {verMasBloqueadas ? 'Mostrar menos' : `Ver las ${materiasBloqueadas.length} bloqueadas`}
             </button>
           </div>
         )}
