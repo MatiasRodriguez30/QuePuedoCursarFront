@@ -14,8 +14,7 @@ import { useAuth } from './lib/useAuth'
 import { checkCursadaRequirements, checkExcepcionMachete, computeCondicionalidadCandidatos } from './lib/businessLogic'
 
 // Lazy loading de superficies y paneles secundarios
-const RecomendacionesTab = lazy(() => import('./tabs/RecomendacionesTab'))
-const RutaTab = lazy(() => import('./tabs/RutaTab'))
+const CaminoSurface = lazy(() => import('./tabs/CaminoSurface'))
 const AgendaTab = lazy(() => import('./tabs/AgendaTab'))
 const AdminTab = lazy(() => import('./tabs/AdminTab'))
 
@@ -103,7 +102,7 @@ export default function App() {
       detailSheetOpen={currentSurface === 'carrera' && Boolean(targetMateriaId)}
     >
       {loading && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#f4f0e6]/95 backdrop-blur-[2px] p-6 gap-3 select-none">
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#f4f0e6]/95 p-6 gap-3 select-none">
           <div className="p-3 bg-white border-3 border-[#111111] shadow-fanzine-md">
             <TitoAvatar variant="cafe" className="w-16 h-16" />
           </div>
@@ -165,15 +164,10 @@ export default function App() {
 
           {currentSurface === 'camino' && (
             <Suspense fallback={<TabFallback />}>
-              <div className="space-y-6">
-                <div className="p-3.5 bg-[#ccff00] border-2 border-[#111111] shadow-fanzine-sm flex items-center justify-between">
-                  <span className="text-xs font-mono font-bold uppercase text-[#111111]">
-                    Ruta e Itinerario Cuatrimestral
-                  </span>
-                </div>
-                <RutaTab ctx={ctx} />
-                <RecomendacionesTab ctx={ctx} />
-              </div>
+              <CaminoSurface
+                ctx={ctx}
+                onNavigateToCarrera={handleNavigateToCarrera}
+              />
             </Suspense>
           )}
 

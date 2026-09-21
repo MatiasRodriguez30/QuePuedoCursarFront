@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BookX, Edit3, GitFork, Plus, Search, Shuffle, Trash2 } from 'lucide-react'
+import { BookX, ChevronDown, ChevronUp, Edit3, GitFork, Plus, Search, Shuffle, Trash2 } from 'lucide-react'
 import { apiRequest } from '../../lib/api'
 import MateriaModal from '../../components/MateriaModal'
 import PrereqsModal from '../../components/PrereqsModal'
@@ -20,6 +20,17 @@ export default function AdminMateriasPanel({ ctx, showToast, showConfirm }) {
     gruposPorAnio[key].push(m)
   })
   const aniosOrdenados = Object.keys(gruposPorAnio).sort((a, b) => Number(a) - Number(b))
+  const [expandedAnios, setExpandedAnios] = useState(() => {
+    const primer = aniosOrdenados[0] || '1'
+    return { [primer]: true }
+  })
+
+  function toggleAnio(anioKey) {
+    setExpandedAnios(prev => ({
+      ...prev,
+      [anioKey]: !prev[anioKey]
+    }))
+  }
 
   async function handleDelete(m) {
     const ok = await showConfirm(
@@ -90,16 +101,37 @@ export default function AdminMateriasPanel({ ctx, showToast, showConfirm }) {
           {aniosOrdenados.map(anioKey => {
             const materiasAnio = gruposPorAnio[anioKey]
             const titulo = anioKey == 0 ? 'Materias Sin Nivel Asignado' : `${anioKey}º Año de Cursada`
+            const isOpen = Boolean(query.trim() || expandedAnios[anioKey])
             return (
               <div key={anioKey} className="space-y-3">
-                <div className="flex items-center gap-2 pb-1.5 border-b-2 border-[#111111]">
-                  <span className="w-2.5 h-2.5 bg-[#ff1464] border border-[#111111]" aria-hidden="true" />
-                  <h3 className="font-display text-xs sm:text-sm font-bold uppercase text-[#111111]">{titulo}</h3>
-                  <span className="text-[11px] font-mono text-[#52525b]">({materiasAnio.length} materias)</span>
-                </div>
+                <button
+                  type="button"
+                  aria-expanded={isOpen}
+                  onClick={() => toggleAnio(anioKey)}
+                  className="w-full flex items-center justify-between gap-2 pb-1.5 border-b-2 border-[#111111] text-left cursor-pointer md:cursor-default select-none"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 bg-[#ff1464] border border-[#111111]" aria-hidden="true" />
+                    <h3 className="font-display text-xs sm:text-sm font-bold uppercase text-[#111111]">{titulo}</h3>
+                    <span className="text-[11px] font-mono text-[#52525b]">({materiasAnio.length} materias)</span>
+                  </div>
+                  <span className="md:hidden flex items-center gap-1 font-mono text-[10px] font-bold uppercase px-2 py-0.5 border border-[#111111] bg-white text-[#111111] shadow-[1px_1px_0px_#111111]">
+                    {isOpen ? (
+                      <>
+                        <span>Plegar</span>
+                        <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" />
+                      </>
+                    ) : (
+                      <>
+                        <span>Desplegar</span>
+                        <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />
+                      </>
+                    )}
+                  </span>
+                </button>
 
-                {/* Grilla responsiva de fichas (móvil 1 col, tablet/desktop 2-3 col) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {/* Grilla responsiva de fichas (acordeón en móvil, expandida en escritorio) */}
+                <div className={isOpen ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-3'}>
                   {materiasAnio.map(m => {
                     const reqs = ctx.prereqsByMateria[m.id] || []
                     return (
