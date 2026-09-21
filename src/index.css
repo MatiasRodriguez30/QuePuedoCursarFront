@@ -38,6 +38,13 @@ body {
   background-color: #f4f0e6;
 }
 
+/* Tratamiento tipográfico fanzine: Dela Gothic One con espaciado amplio entre palabras */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+  word-spacing: 0.18em;
+}
+
 /* Textura sutil de fotocopiadora risograph en canvas general */
 .bg-riso-halftone {
   background-image: radial-gradient(rgba(17, 17, 17, 0.05) 1px, transparent 1px);

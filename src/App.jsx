@@ -100,6 +100,7 @@ export default function App() {
       carreraId={carreraId}
       onCarreraChange={setCarreraId}
       onOpenAdmin={() => setAdminOpen(true)}
+      detailSheetOpen={currentSurface === 'carrera' && Boolean(targetMateriaId)}
     >
       {loading && (
         <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#f4f0e6]/95 backdrop-blur-[2px] p-6 gap-3 select-none">

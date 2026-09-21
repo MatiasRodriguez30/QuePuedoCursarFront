@@ -1,20 +1,18 @@
 import { useState, useMemo, useEffect } from 'react'
 import {
-  AlertTriangle,
   ArrowRight,
-  BookOpen,
   Calendar,
   CheckCircle2,
-  Clock,
-  ExternalLink,
   Flame,
-  Layers,
+  Lock,
   Sparkles
 } from 'lucide-react'
 import TitoAvatar from '../components/TitoAvatar'
 import {
   checkCursadaRequirements,
+  computeImpacto,
   computeImpactoCascada,
+  proximaOportunidad,
   esElectiva,
   checkExcepcionMachete,
   computeCondicionalidadCandidatos
@@ -129,14 +127,31 @@ export default function HoySurface({
         const st = ctx.estadosMap[m.id] || 'NO_CURSADA'
         return st === 'NO_CURSADA' && checkCursadaRequirements(m.id, ctx).puede
       })
-      .map(m => ({
-        ...m,
-        cascada: computeImpactoCascada(m.id, ctx),
-      }))
-      .sort((a, b) => b.cascada.totalMateriasAtrasadas - a.cascada.totalMateriasAtrasadas)
+      .map(m => {
+        const cascada = computeImpactoCascada(m.id, ctx)
+        const impactoDirecto = computeImpacto(m.id, ctx)
+        const oportunidad = proximaOportunidad(m, ctx)
+        const prereqs = ctx.prereqsByMateria[m.id] || []
+        const regPrereqs = prereqs
+          .filter(p => p.tipo === 'REGULARIZADA')
+          .map(p => p.materia_requerida?.nombre || ctx.materiasById?.get(p.materia_requerida_id)?.nombre || `Materia #${p.materia_requerida_id}`)
+        const aprPrereqs = prereqs
+          .filter(p => p.tipo === 'APROBADA')
+          .map(p => p.materia_requerida?.nombre || ctx.materiasById?.get(p.materia_requerida_id)?.nombre || `Materia #${p.materia_requerida_id}`)
+
+        return {
+          ...m,
+          cascada,
+          impactoDirecto,
+          oportunidad,
+          regPrereqs,
+          aprPrereqs,
+        }
+      })
+      .sort((a, b) => (b.cascada.cantidad || 0) - (a.cascada.cantidad || 0))
   }, [ctx])
 
-  const listasVisibles = verMasListas ? materiasListas : materiasListas.slice(0, 3)
+  const listasVisibles = verMasListas ? materiasListas : materiasListas.slice(0, 4)
 
   // 2. "Finales pendientes": materias en estado REGULAR
   const finalesPendientes = useMemo(() => {
@@ -173,7 +188,7 @@ export default function HoySurface({
           </div>
 
           <div className="flex-1 text-center sm:text-left min-w-0">
-            <h1 className="font-display text-lg sm:text-2xl font-bold uppercase tracking-tight text-[#111111] leading-tight break-words">
+            <h1 className="font-display text-lg sm:text-2xl font-bold uppercase text-[#111111] leading-tight break-words">
               {headline}
             </h1>
             <p className="text-xs sm:text-sm font-mono text-[#27272a] mt-1.5 leading-relaxed">
@@ -202,12 +217,12 @@ export default function HoySurface({
 
         {/* Escala colosal de porcentaje */}
         <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-4 my-2">
-          <div className="font-display text-5xl sm:text-6xl font-bold tracking-tight text-[#ff1464] leading-none">
+          <div className="font-display text-5xl sm:text-6xl font-bold text-[#ff1464] leading-none">
             {metricas.porcentaje}%
           </div>
           <div className="text-xs font-mono text-[#a1a1aa] leading-snug">
-            <div><strong>{metricas.horasAprobadas} HS</strong> CÁTEDRA ACUMULADAS</div>
-            <div>{metricas.horasTotal > 0 ? `${metricas.horasTotal - metricas.horasAprobadas} HS RESTANTES DE PLAN` : ''}</div>
+            <div><strong>{metricas.horasAprobadas} de {metricas.horasTotal} hs/sem</strong> acumuladas del plan</div>
+            <div>{metricas.horasTotal > 0 ? `${metricas.horasTotal - metricas.horasAprobadas} hs/sem restantes de cursada` : ''}</div>
           </div>
         </div>
 
@@ -230,8 +245,9 @@ export default function HoySurface({
           <span className="px-2 py-1 bg-[#0047ff] text-white border border-[#111111]">
             ⚡ {metricas.cursando} Cursando
           </span>
-          <span className="px-2 py-1 bg-[#27272a] text-[#a1a1aa] border border-[#52525b]">
-            ✕ {metricas.bloqueadas} Bloqueadas
+          <span className="px-2 py-1 bg-[#27272a] text-[#a1a1aa] border border-[#52525b] flex items-center gap-1">
+            <Lock className="w-3 h-3" aria-hidden="true" />
+            <span>{metricas.bloqueadas} Bloqueadas</span>
           </span>
         </div>
       </section>
@@ -282,9 +298,37 @@ export default function HoySurface({
                     <h3 className="text-sm font-bold text-[#111111] mt-0.5 pr-20 leading-tight">
                       {m.nombre}
                     </h3>
-                    <div className="text-[11px] font-mono text-[#111111] mt-2 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-[#16a34a] flex-shrink-0" aria-hidden="true" />
-                      <span>Requisitos al día para inscribirse</span>
+
+                    {/* Indicadores clave de impacto y dictado */}
+                    <div className="grid grid-cols-2 gap-1.5 mt-2.5 pt-2 border-t border-[#e4e4e7] text-[10px] font-mono">
+                      <div className="bg-[#f4f0e6] p-1.5 border border-[#111111]">
+                        <span className="text-[#71717a] block font-bold uppercase text-[9px]">Desbloquea</span>
+                        <span className="font-bold text-[#111111] leading-tight block">
+                          {m.impactoDirecto} {m.impactoDirecto === 1 ? 'materia' : 'materias'}
+                          {m.cascada.cantidad > m.impactoDirecto ? ` (${m.cascada.cantidad} en cadena)` : ''}
+                        </span>
+                      </div>
+                      <div className="bg-[#f4f0e6] p-1.5 border border-[#111111]">
+                        <span className="text-[#71717a] block font-bold uppercase text-[9px]">Oportunidad</span>
+                        <span className="font-bold text-[#111111] truncate block leading-tight" title={m.oportunidad.texto}>
+                          {m.oportunidad.ahora ? '★ Se dicta ahora' : m.oportunidad.texto}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Requisitos previos cumplidos */}
+                    <div className="text-[10px] font-mono text-[#52525b] mt-2 flex items-start gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#16a34a] shrink-0 mt-0.5" aria-hidden="true" />
+                      <div className="leading-tight">
+                        {m.regPrereqs.length === 0 && m.aprPrereqs.length === 0 ? (
+                          <span className="text-[#15803d] font-bold">Sin correlativas previas (ingreso directo)</span>
+                        ) : (
+                          <span>
+                            {m.regPrereqs.length > 0 && <span className="mr-2"><strong>REG:</strong> {m.regPrereqs.join(', ')}</span>}
+                            {m.aprPrereqs.length > 0 && <span><strong>APR:</strong> {m.aprPrereqs.join(', ')}</span>}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 

@@ -23,22 +23,36 @@ const WS_CFG = {
     bg: 'bg-[#ccff00]',
     label: 'En vivo',
     tooltip: 'Sincronizado en tiempo real por WebSocket',
-    indicator: 'bg-[#111111]',
   },
   connecting: {
     colorText: 'text-[#111111]',
     bg: 'bg-[#fef08a]',
     label: 'Reconectando',
     tooltip: 'Estableciendo conexión con el servidor…',
-    indicator: 'bg-[#d97706]',
   },
   disconnected: {
     colorText: 'text-white',
     bg: 'bg-[#dc2626]',
     label: 'Sin conexión',
     tooltip: 'Sin conexión. Los cambios se guardan localmente.',
-    indicator: 'bg-white',
   },
+}
+
+function WsShapeIndicator({ status }) {
+  if (status === 'connected') {
+    // Círculo sólido para En vivo
+    return <span className="w-2.5 h-2.5 rounded-full bg-[#111111] border border-[#111111] flex-shrink-0" aria-hidden="true" />
+  }
+  if (status === 'connecting') {
+    // Rombo / diamante rotado para Reconectando
+    return <span className="w-2 h-2 rotate-45 bg-[#b45309] border border-[#111111] flex-shrink-0" aria-hidden="true" />
+  }
+  // Cuadrado tachado para Sin conexión
+  return (
+    <span className="w-2.5 h-2.5 bg-white border border-[#111111] flex-shrink-0 flex items-center justify-center text-[8px] font-bold text-[#dc2626] leading-none" aria-hidden="true">
+      ✕
+    </span>
+  )
 }
 
 export default function Shell({
@@ -53,6 +67,7 @@ export default function Shell({
   carreraId,
   onCarreraChange,
   onOpenAdmin,
+  detailSheetOpen = false,
   children,
 }) {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -79,20 +94,20 @@ export default function Shell({
       <header className="sticky top-0 z-40 w-full bg-[#f4f0e6] border-b-2 border-[#111111] shadow-[0_2px_0px_rgba(0,0,0,0.05)]">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2 sm:gap-4">
           {/* Logo Tito (SVG geométrico 16px legible) + Nombre */}
-          <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-1 sm:flex-initial">
             <button
               type="button"
               onClick={() => onSelectSurface('hoy')}
-              className="flex items-center gap-2.5 text-left focus:outline-none group cursor-pointer"
+              className="flex items-center gap-2 text-left focus:outline-none group cursor-pointer min-w-0"
               title="Ir a Hoy"
             >
-              <div className="w-8 h-8 sm:w-9 sm:h-9 bg-[#ccff00] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] p-1 flex-shrink-0 flex items-center justify-center group-hover:translate-x-0.5 group-hover:translate-y-0.5 group-hover:shadow-[1px_1px_0px_#111111] transition-all">
+              <div className="w-7 h-7 sm:w-9 sm:h-9 bg-[#ccff00] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] p-0.5 flex-shrink-0 flex items-center justify-center group-hover:translate-x-0.5 group-hover:translate-y-0.5 group-hover:shadow-[1px_1px_0px_#111111] transition-all">
                 <img src={TitoFavicon} alt="Tito el cobayo" className="w-full h-full" width={32} height={32} />
               </div>
-              <div className="min-w-0">
-                <span className="font-display text-sm sm:text-base font-bold tracking-tight uppercase text-[#111111] block truncate leading-none">
+              <div className="min-w-0 truncate">
+                <span className="font-display text-xs sm:text-base font-bold uppercase text-[#111111] block truncate leading-none">
                   <span className="hidden sm:inline">Qué Puedo Cursar</span>
-                  <span className="sm:hidden">Qué Cursar</span>
+                  <span className="sm:hidden">QPC</span>
                 </span>
                 <span className="text-[9px] font-mono font-bold uppercase text-[#52525b] hidden sm:block tracking-widest mt-0.5">
                   FANZINE V.03
@@ -102,7 +117,7 @@ export default function Shell({
           </div>
 
           {/* Selector de Carrera + Estado WS + Menú Usuario */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
             {/* Selector de carrera */}
             {carreras && carreras.length > 0 && (
               <select
@@ -110,7 +125,7 @@ export default function Shell({
                 onChange={e => onCarreraChange(parseInt(e.target.value, 10))}
                 aria-label="Carrera actual"
                 title="Cambiar carrera activa"
-                className="bg-white border-2 border-[#111111] shadow-[2px_2px_0px_#111111] px-2 sm:px-2.5 py-1 text-xs font-bold font-mono text-[#111111] focus:outline-none focus:bg-[#fef08a] max-w-[110px] sm:max-w-[190px] truncate cursor-pointer"
+                className="bg-white border-2 border-[#111111] shadow-[2px_2px_0px_#111111] px-2 sm:px-2.5 py-1 text-xs font-bold font-mono text-[#111111] focus:outline-none focus:bg-[#fef08a] max-w-[100px] sm:max-w-[190px] truncate cursor-pointer"
               >
                 {carreras.map(c => (
                   <option key={c.id} value={c.id}>
@@ -120,12 +135,12 @@ export default function Shell({
               </select>
             )}
 
-            {/* Estado WebSocket Textual Accesible */}
+            {/* Estado WebSocket Textual Accesible con Forma Geométrica Distinta */}
             <div
               title={wsCfg.tooltip}
-              className={`flex items-center gap-1.5 px-2 py-1 border-2 border-[#111111] shadow-[2px_2px_0px_#111111] text-[10px] sm:text-xs font-mono font-bold uppercase ${wsCfg.bg} ${wsCfg.colorText} flex-shrink-0 cursor-default`}
+              className={`flex items-center gap-1.5 px-1.5 sm:px-2 py-1 border-2 border-[#111111] shadow-[2px_2px_0px_#111111] text-[10px] sm:text-xs font-mono font-bold uppercase ${wsCfg.bg} ${wsCfg.colorText} flex-shrink-0 cursor-default`}
             >
-              <span className={`w-2 h-2 ${wsCfg.indicator} border border-[#111111] flex-shrink-0`} aria-hidden="true" />
+              <WsShapeIndicator status={wsStatus} />
               <span className="hidden md:inline">{wsCfg.label}</span>
               <span className="sr-only">{wsCfg.label} — {wsCfg.tooltip}</span>
             </div>
@@ -188,13 +203,15 @@ export default function Shell({
 
       {/* ── CUERPO PRINCIPAL (DESKTOP RAIL LATERAL + ÁREA DE SUPERFICIE) ───────── */}
       <div className="flex-1 flex max-w-7xl w-full mx-auto overflow-hidden">
-        {/* Riel lateral exclusivo de Tablet/Escritorio (>= 768px) tipo separador fanzine */}
+        {/* Riel lateral exclusivo de Tablet/Escritorio (>= 768px) tipo separador fanzine (colapsa en modo compacto con hoja de detalle abierta) */}
         <aside
           aria-label="Navegación principal de cuaderno"
-          className="hidden md:flex w-52 bg-[#eee8d8] border-r-3 border-[#111111] p-4 flex-col gap-2.5 flex-shrink-0 select-none"
+          className={`hidden md:flex ${
+            detailSheetOpen ? 'w-16 p-2 items-center' : 'w-52 p-4'
+          } bg-[#eee8d8] border-r-3 border-[#111111] flex-col gap-2.5 flex-shrink-0 select-none transition-all duration-150`}
         >
-          <div className="text-[10px] font-mono font-bold uppercase text-[#71717a] px-2 mb-1 tracking-wider">
-            SECCIONES
+          <div className={`text-[10px] font-mono font-bold uppercase text-[#71717a] ${detailSheetOpen ? 'text-center' : 'px-2'} mb-1 tracking-wider`}>
+            {detailSheetOpen ? '···' : 'SECCIONES'}
           </div>
           {NAVIGATION_SURFACES.map(s => {
             const Icon = s.icon
@@ -206,7 +223,10 @@ export default function Shell({
                 key={s.id}
                 type="button"
                 onClick={() => onSelectSurface(s.id)}
-                className={`w-full flex items-center justify-between p-2.5 border-2 border-[#111111] text-xs font-bold font-mono uppercase tracking-tight transition-all cursor-pointer ${
+                title={detailSheetOpen ? s.label : undefined}
+                className={`w-full flex items-center ${
+                  detailSheetOpen ? 'justify-center p-2.5' : 'justify-between p-2.5'
+                } border-2 border-[#111111] text-xs font-bold font-mono uppercase tracking-tight transition-all cursor-pointer relative ${
                   active
                     ? 'bg-[#111111] text-[#ccff00] shadow-[3px_3px_0px_#ff1464] translate-x-1'
                     : 'bg-white text-[#111111] shadow-[2px_2px_0px_#111111] hover:bg-[#fff9db] hover:translate-x-0.5'
@@ -214,11 +234,15 @@ export default function Shell({
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <Icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
-                  <span className="truncate">{s.label}</span>
+                  {!detailSheetOpen && <span className="truncate">{s.label}</span>}
                 </div>
                 {badge > 0 && (
                   <span
-                    className={`text-[10px] font-bold px-1.5 py-0.2 border border-[#111111] ${
+                    className={`${
+                      detailSheetOpen
+                        ? 'absolute -top-1.5 -right-1.5 text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold border border-[#111111]'
+                        : 'text-[10px] font-bold px-1.5 py-0.2 border border-[#111111]'
+                    } ${
                       active ? 'bg-[#ff1464] text-[#111111]' : 'bg-[#ccff00] text-[#111111]'
                     }`}
                   >

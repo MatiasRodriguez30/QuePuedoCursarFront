@@ -1,5 +1,6 @@
 import { memo, useDeferredValue, useMemo, useState } from 'react'
 import {
+  Lock,
   RotateCcw,
   Search,
   Undo2,
@@ -276,9 +277,9 @@ export default function CarreraSurface({
 
       {/* ── MALLA VIVA: COLUMNAS 1º A 5º AÑO + ELECTIVAS ─────────────────────── */}
       <div className="flex gap-3 items-start">
-        {/* Grid de columnas (en desktop todas visibles con min-width; en móvil/tablet la seleccionada) */}
+        {/* Grid de columnas (en desktop todas visibles; en móvil/tablet la pestaña activa) */}
         <div className="flex-1 min-w-0 overflow-x-auto pb-4">
-          <div className="grid grid-cols-1 lg:grid-cols-6 gap-2.5 min-w-0 lg:min-w-[960px] items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-6 gap-2 min-w-0 lg:min-w-[800px] xl:min-w-[920px] items-start">
             {mallaData
               .filter(col => {
                 if (typeof window !== 'undefined' && window.innerWidth < 1024) {
@@ -320,7 +321,7 @@ export default function CarreraSurface({
         {materiaActiva && (
           <aside
             aria-label="Detalle de materia seleccionada"
-            className="hidden lg:flex w-80 bg-white border-3 border-[#111111] shadow-fanzine-md p-4 flex-col gap-3.5 sticky top-20 flex-shrink-0 max-h-[85vh] overflow-y-auto"
+            className="hidden lg:flex w-72 xl:w-80 bg-white border-3 border-[#111111] shadow-fanzine-md p-4 flex-col gap-3.5 sticky top-20 flex-shrink-0 max-h-[85vh] overflow-y-auto"
           >
             <HojaDeDetalleContenido
               materia={materiaActiva}
@@ -437,7 +438,12 @@ function EstadoStampMini({ estado, isLista }) {
   if (isLista) {
     return <span className="px-1 py-0.2 bg-[#ff1464] text-[#111111] border border-[#111111] font-bold">LISTA</span>
   }
-  return <span className="px-1 py-0.2 bg-[#71717a] text-white font-bold">✕</span>
+  return (
+    <span className="inline-flex items-center gap-0.5 px-1 py-0.2 bg-[#f4f4f5] text-[#111111] border border-[#71717a] font-bold text-[9px]">
+      <Lock className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
+      <span>Bloqueada</span>
+    </span>
+  )
 }
 
 /**
