@@ -87,7 +87,7 @@ export default function Shell({
               title="Ir a Hoy"
             >
               <div className="w-8 h-8 sm:w-9 sm:h-9 bg-[#ccff00] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] p-1 flex-shrink-0 flex items-center justify-center group-hover:translate-x-0.5 group-hover:translate-y-0.5 group-hover:shadow-[1px_1px_0px_#111111] transition-all">
-                <img src={TitoFavicon} alt="Tito Carpincho" className="w-full h-full" width={32} height={32} />
+                <img src={TitoFavicon} alt="Tito el cobayo" className="w-full h-full" width={32} height={32} />
               </div>
               <div className="min-w-0">
                 <span className="font-display text-sm sm:text-base font-bold tracking-tight uppercase text-[#111111] block truncate leading-none">
