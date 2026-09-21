@@ -16,14 +16,14 @@ const POSES = {
 }
 
 const ALTS = {
-  cafe: 'Tito el Carpincho cansado tomando café',
-  default: 'Tito el Carpincho Estudiante',
-  lupa: 'Tito el Carpincho buscando con lupa',
-  'empty-search': 'Tito buscando con lupa sin resultados',
-  festejo: 'Tito festejando con papeles al aire',
-  mate: 'Tito relajado tomando mate',
-  'relax-mate': 'Tito relajado tomando mate con el termo al lado',
-  urgente: 'Tito mordiendo un lápiz con alarma urgente',
+  cafe: 'Tito el cobayo cansado tomando café',
+  default: 'Tito el cobayo estudiante',
+  lupa: 'Tito el cobayo buscando con lupa',
+  'empty-search': 'Tito el cobayo buscando con lupa sin resultados',
+  festejo: 'Tito el cobayo festejando con confetti risograph al aire',
+  mate: 'Tito el cobayo relajado tomando mate con bombilla',
+  'relax-mate': 'Tito el cobayo relajado tomando mate',
+  urgente: 'Tito el cobayo con alarma y gotas de sudor por entrega urgente',
 }
 
 /**
