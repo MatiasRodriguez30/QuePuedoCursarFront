@@ -19,7 +19,7 @@ export default function SelloLogroContainer({ logros = [], onDescartar }) {
             key={logro.id}
             role="status"
             aria-live="polite"
-            className={`pointer-events-auto bg-[#fffdfa] border-3 border-[#111111] shadow-[4px_4px_0px_#111111] p-3 flex items-start gap-3 transition-transform motion-reduce:rotate-0 motion-reduce:transition-none ${rotacionClass}`}
+            className={`stamp-clack-animation pointer-events-auto bg-[#fffdfa] border-3 border-[#111111] shadow-[4px_4px_0px_#111111] p-3 flex items-start gap-3 transition-transform motion-reduce:rotate-0 motion-reduce:transition-none ${rotacionClass}`}
           >
             {/* Sello gráfico con Tito Festejo */}
             <div className="w-11 h-11 bg-[#ccff00] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] flex items-center justify-center p-0.5 flex-shrink-0">
