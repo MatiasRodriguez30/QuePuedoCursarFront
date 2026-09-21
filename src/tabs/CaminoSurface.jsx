@@ -148,11 +148,19 @@ export default function CaminoSurface({ ctx, onNavigateToCarrera }) {
             </div>
           </div>
           <div className="p-2.5 bg-[#f4f0e6] border-2 border-[#111111] shadow-fanzine-sm text-center min-w-[80px]">
-            <div className="font-mono text-[10px] font-bold text-[#52525b] uppercase">Restan</div>
+            <div className="font-mono text-[10px] font-bold text-[#52525b] uppercase">Materias</div>
             <div className="font-display text-base sm:text-lg font-bold text-[#111111]">
-              {camino.materiasRestantes}
+              {camino.pasos.reduce((total, paso) => total + paso.materias.length, 0)}
             </div>
           </div>
+          {camino.materiasRestantes > 0 && (
+            <div className="p-2.5 bg-[#ff1464] border-2 border-[#111111] shadow-fanzine-sm text-center min-w-[80px]">
+              <div className="font-mono text-[10px] font-bold text-[#111111] uppercase">Sin ubicar</div>
+              <div className="font-display text-base sm:text-lg font-bold text-[#111111]">
+                {camino.materiasRestantes}
+              </div>
+            </div>
+          )}
           <div className="w-14 h-14 bg-[#ccff00] border-2 border-[#111111] shadow-fanzine-sm p-1 hidden sm:flex items-center justify-center flex-shrink-0">
             <TitoAvatar variant="lupa" className="w-12 h-12" />
           </div>

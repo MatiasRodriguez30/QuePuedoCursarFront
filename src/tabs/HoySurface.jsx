@@ -475,8 +475,8 @@ export default function HoySurface({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {eventosProximos.map(ev => (
               <div key={ev.id} className="p-2.5 bg-[#f4f0e6] border-2 border-[#111111] text-xs">
-                <div className="flex justify-between font-mono text-[10px] font-bold uppercase text-[#ff1464]">
-                  <span>{ev.fecha}</span>
+                <div className="flex justify-between items-center font-mono text-[10px] font-bold uppercase text-[#111111]">
+                  <span className="px-1.5 py-0.5 bg-[#ff1464] border border-[#111111]">{ev.fecha}</span>
                   <span>{ev.hora_inicio || ''}</span>
                 </div>
                 <div className="font-bold text-[#111111] mt-0.5">{ev.titulo}</div>

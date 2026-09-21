@@ -634,7 +634,7 @@ function HojaDeDetalleContenido({
         <div className="flex items-center justify-between text-xs font-mono font-bold uppercase text-[#111111] mb-1.5">
           <span>Materias que Desbloquea ({dependientes.length})</span>
           {cascada.totalMateriasAtrasadas > 0 && (
-            <span className="text-[#ff1464]">Cascada: {cascada.totalMateriasAtrasadas}</span>
+            <span className="px-1.5 py-0.5 bg-[#ff1464] text-[#111111] border border-[#111111]">Cascada: {cascada.totalMateriasAtrasadas}</span>
           )}
         </div>
         {dependientes.length === 0 ? (
