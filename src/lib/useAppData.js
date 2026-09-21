@@ -86,6 +86,14 @@ export function useAppData(showToast, usuarioId) {
   // que llega por WS entra en lo que ya está cargado (si no, se ignora: se
   // va a traer solo cuando el usuario navegue a ese mes).
   const rangoEventosRef = useRef({ desde: null, hasta: null })
+  const wsListenersRef = useRef(new Set())
+
+  const subscribeWsEvents = useCallback((listener) => {
+    wsListenersRef.current.add(listener)
+    return () => {
+      wsListenersRef.current.delete(listener)
+    }
+  }, [])
 
   // `ctx` se reconstruye sólo cuando cambian los datos, no en cada render:
   // es la dependencia de todos los useMemo de las pestañas (cálculo de
@@ -299,6 +307,13 @@ export function useAppData(showToast, usuarioId) {
         pingIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) ws.send('ping')
         }, 20000)
+        wsListenersRef.current.forEach(listener => {
+          try {
+            listener({ event: '_reconnected', data: null })
+          } catch (err) {
+            console.error('Error en listener WS onopen:', err)
+          }
+        })
       }
 
       ws.onclose = () => {
@@ -313,6 +328,13 @@ export function useAppData(showToast, usuarioId) {
         try {
           const payload = JSON.parse(event.data)
           handleEvent(payload)
+          wsListenersRef.current.forEach(listener => {
+            try {
+              listener(payload)
+            } catch (err) {
+              console.error('Error en listener WS onmessage:', err)
+            }
+          })
         } catch (e) {
           console.error('Error parseando WS message:', e)
         }
@@ -454,5 +476,6 @@ export function useAppData(showToast, usuarioId) {
     setCarreraId,
     reloadCarreras: fetchInicial,
     reloadMateriasYPrereqs: () => carreraId && fetchCarrera(carreraId),
+    subscribeWsEvents,
   }
 }

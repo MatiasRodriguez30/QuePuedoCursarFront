@@ -6,7 +6,8 @@ import {
   LogOut,
   Route,
   Settings,
-  User
+  User,
+  Users
 } from 'lucide-react'
 import TitoFavicon from '/favicon.svg'
 
@@ -67,6 +68,9 @@ export default function Shell({
   carreraId,
   onCarreraChange,
   onOpenAdmin,
+  grupo = null,
+  onOpenGrupo,
+  gruposDisponibles = true,
   detailSheetOpen = false,
   children,
 }) {
@@ -156,18 +160,48 @@ export default function Shell({
               >
                 <User className="w-3.5 h-3.5" aria-hidden="true" />
                 <span className="hidden sm:inline max-w-[120px] truncate">
-                  {usuario?.email?.split('@')[0] || 'Cuenta'}
+                  {usuario?.apodo || usuario?.email?.split('@')[0] || 'Cuenta'}
                 </span>
                 <span className="text-[9px]">▾</span>
               </button>
 
               {/* Popover del Menú de Usuario */}
               {userMenuOpen && (
-                <div className="absolute right-0 mt-1 w-52 bg-[#fffdfa] border-3 border-[#111111] shadow-[5px_5px_0px_#111111] p-1.5 z-50 flex flex-col gap-1">
+                <div className="absolute right-0 mt-1 w-56 bg-[#fffdfa] border-3 border-[#111111] shadow-[5px_5px_0px_#111111] p-1.5 z-50 flex flex-col gap-1">
                   <div className="px-2.5 py-1.5 border-b border-[#111111] mb-1">
                     <div className="text-[10px] font-mono font-bold uppercase text-[#71717a]">Usuario activo</div>
                     <div className="text-xs font-bold text-[#111111] truncate">{usuario?.email}</div>
+                    {usuario?.apodo && (
+                      <div className="text-[11px] font-mono text-[#52525b] truncate mt-0.5">
+                        Apodo: <strong className="text-[#111111]">{usuario.apodo}</strong>
+                      </div>
+                    )}
                   </div>
+
+                  {gruposDisponibles && onOpenGrupo && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserMenuOpen(false)
+                        onOpenGrupo()
+                      }}
+                      className="w-full flex items-center justify-between px-2.5 py-2 text-left text-xs font-bold uppercase font-mono text-[#111111] hover:bg-[#ccff00] hover:border hover:border-[#111111] cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Users className="w-3.5 h-3.5 text-[#111111] flex-shrink-0" aria-hidden="true" />
+                        <span className="truncate">Mi Grupo</span>
+                      </div>
+                      {grupo ? (
+                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 bg-[#ccff00] text-[#111111] border border-[#111111] truncate max-w-[90px]">
+                          {grupo.nombre}
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 bg-[#f4f0e6] text-[#71717a] border border-[#111111]">
+                          Sin grupo
+                        </span>
+                      )}
+                    </button>
+                  )}
 
                   {esAdmin && (
                     <button
