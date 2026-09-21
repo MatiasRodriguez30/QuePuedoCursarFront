@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import TitoFavicon from '/favicon.svg'
 
-export const NAVIGATION_SURFACES = [
+const NAVIGATION_SURFACES = [
   { id: 'hoy', label: 'Hoy', icon: Compass },
   { id: 'carrera', label: 'Mi carrera', icon: FileSpreadsheet },
   { id: 'camino', label: 'Camino', icon: Route },
