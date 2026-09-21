@@ -69,5 +69,10 @@ export function useAuth() {
     setUsuario(null)
   }, [])
 
-  return { usuario, checking, login, registrar, logout, esAdmin: usuario?.rol === 'ADMIN' }
+  const actualizarUsuario = useCallback((nuevoUsuario) => {
+    setUsuario(nuevoUsuario)
+    writeCache('usuario', null, nuevoUsuario)
+  }, [])
+
+  return { usuario, checking, login, registrar, logout, actualizarUsuario, esAdmin: usuario?.rol === 'ADMIN' }
 }

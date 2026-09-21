@@ -2,12 +2,15 @@ import { lazy, Suspense, useMemo, useState } from 'react'
 import Shell from './components/Shell'
 import ToastContainer from './components/ToastContainer'
 import ConfirmDialog from './components/ConfirmDialog'
+import GrupoModal from './components/GrupoModal'
+import SelloLogroContainer from './components/SelloLogroContainer'
 import LoginScreen from './components/LoginScreen'
 import ResetPasswordScreen from './components/ResetPasswordScreen'
 import TitoAvatar from './components/TitoAvatar'
 import HoySurface from './tabs/HoySurface'
 import CarreraSurface from './tabs/CarreraSurface'
 import { useAppData } from './lib/useAppData'
+import { useGrupo } from './lib/useGrupo'
 import { useToasts } from './lib/useToasts'
 import { useConfirm } from './lib/useConfirm'
 import { useAuth } from './lib/useAuth'
@@ -23,11 +26,30 @@ export default function App() {
   const [currentSurface, setCurrentSurface] = useState('hoy')
   const [targetMateriaId, setTargetMateriaId] = useState(null)
   const [adminOpen, setAdminOpen] = useState(false)
+  const [grupoModalOpen, setGrupoModalOpen] = useState(false)
 
   const { toasts, showToast, dismiss } = useToasts()
   const { confirmState, showConfirm, resolveConfirm } = useConfirm()
-  const { usuario, checking, login, registrar, logout, esAdmin } = useAuth()
-  const { ctx, loading, wsStatus, setConfigApp, cargarEventos, carreraId, setCarreraId, actualizarEstado } = useAppData(showToast, usuario?.id)
+  const { usuario, checking, login, registrar, logout, actualizarUsuario, esAdmin } = useAuth()
+  const { ctx, loading, wsStatus, setConfigApp, cargarEventos, carreraId, setCarreraId, actualizarEstado, subscribeWsEvents } = useAppData(showToast, usuario?.id)
+
+  const {
+    grupo,
+    cargando: cargandoGrupo,
+    disponible: gruposDisponibles,
+    logros,
+    descartarLogro,
+    crearGrupo,
+    unirseGrupo,
+    cambiarPreferencia,
+    salirGrupo,
+    actualizarApodo,
+  } = useGrupo({
+    subscribeWsEvents,
+    usuario,
+    onUsuarioUpdate: actualizarUsuario,
+    showToast,
+  })
 
   const badgeDisponibles = useMemo(() => {
     return ctx.materias.filter(m => {
@@ -99,6 +121,9 @@ export default function App() {
       carreraId={carreraId}
       onCarreraChange={setCarreraId}
       onOpenAdmin={() => setAdminOpen(true)}
+      grupo={grupo}
+      gruposDisponibles={gruposDisponibles}
+      onOpenGrupo={() => setGrupoModalOpen(true)}
       detailSheetOpen={currentSurface === 'carrera' && Boolean(targetMateriaId)}
     >
       {loading && (
@@ -187,6 +212,22 @@ export default function App() {
 
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
       <ConfirmDialog state={confirmState} onResolve={resolveConfirm} />
+      <SelloLogroContainer logros={logros} onDescartar={descartarLogro} />
+      <GrupoModal
+        isOpen={grupoModalOpen}
+        onClose={() => setGrupoModalOpen(false)}
+        grupo={grupo}
+        cargando={cargandoGrupo}
+        disponible={gruposDisponibles}
+        usuario={usuario}
+        onCrearGrupo={crearGrupo}
+        onUnirseGrupo={unirseGrupo}
+        onCambiarPreferencia={cambiarPreferencia}
+        onSalirGrupo={salirGrupo}
+        onActualizarApodo={actualizarApodo}
+        showConfirm={showConfirm}
+        showToast={showToast}
+      />
     </Shell>
   )
 }
