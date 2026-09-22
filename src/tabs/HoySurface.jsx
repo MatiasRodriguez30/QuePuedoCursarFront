@@ -5,9 +5,11 @@ import {
   CheckCircle2,
   Flame,
   Lock,
-  Sparkles
+  Sparkles,
+  Users
 } from 'lucide-react'
 import TitoAvatar from '../components/TitoAvatar'
+import { formatearBadgeCursando, formatearCursandoTexto } from '../lib/logrosLogic'
 import {
   checkCursadaRequirements,
   computeImpacto,
@@ -33,6 +35,7 @@ export default function HoySurface({
   onNavigateToAgenda,
   onActualizarEstado,
   cargarEventos,
+  cursandoPorMateria = {},
 }) {
   // Titular rotativo por sesión para evitar repetición idéntica diaria
   const [headline] = useState(() => {
@@ -299,6 +302,7 @@ export default function HoySurface({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {listasVisibles.map(m => {
               const atrasa = m.cascada.totalMateriasAtrasadas
+              const amigosCursando = cursandoPorMateria[m.id] || []
               return (
                 <div
                   key={m.id}
@@ -319,7 +323,7 @@ export default function HoySurface({
                     </h3>
 
                     {/* Indicadores clave de impacto y dictado */}
-                    <div className="grid grid-cols-2 gap-1.5 mt-2.5 pt-2 border-t border-[#e4e4e7] text-[10px] font-mono">
+                    <div className={`grid ${amigosCursando.length > 0 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'} gap-1.5 mt-2.5 pt-2 border-t border-[#e4e4e7] text-[10px] font-mono`}>
                       <div className="bg-[#f4f0e6] p-1.5 border border-[#111111]">
                         <span className="text-[#71717a] block font-bold uppercase text-[9px]">Desbloquea</span>
                         <span className="font-bold text-[#111111] leading-tight block">
@@ -333,6 +337,17 @@ export default function HoySurface({
                           {m.oportunidad.ahora ? '★ Se dicta ahora' : m.oportunidad.texto}
                         </span>
                       </div>
+                      {amigosCursando.length > 0 && (
+                        <div className="bg-[#ccff00] p-1.5 border border-[#111111] flex flex-col justify-between" title={formatearCursandoTexto(amigosCursando)}>
+                          <span className="text-[#111111] block font-bold uppercase text-[9px] flex items-center gap-1">
+                            <Users className="w-3 h-3 text-[#111111]" aria-hidden="true" />
+                            <span>En grupo</span>
+                          </span>
+                          <span className="font-bold text-[#111111] truncate block leading-tight">
+                            {formatearBadgeCursando(amigosCursando.length)}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Requisitos previos cumplidos */}
@@ -524,24 +539,36 @@ export default function HoySurface({
             <p className="text-xs font-mono text-[#52525b] py-3">No estás cursando ninguna materia actualmente.</p>
           ) : (
             <ul className="space-y-2.5">
-              {enCurso.map(m => (
-                <li
-                  key={m.id}
-                  className="flex items-center justify-between p-2 bg-[#f4f0e6] border border-[#111111] gap-2"
-                >
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-mono font-bold text-[#52525b]">{m.codigo}</div>
-                    <div className="text-xs font-bold text-[#111111] truncate">{m.nombre}</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onActualizarEstado(m.id, 'REGULAR')}
-                    className="px-2 py-1 bg-white text-[#111111] border border-[#111111] text-[11px] font-mono font-bold uppercase hover:bg-[#ccff00] flex-shrink-0 cursor-pointer"
+              {enCurso.map(m => {
+                const amigos = cursandoPorMateria[m.id] || []
+                return (
+                  <li
+                    key={m.id}
+                    className="flex items-center justify-between p-2 bg-[#f4f0e6] border border-[#111111] gap-2"
                   >
-                    Regularicé
-                  </button>
-                </li>
-              ))}
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-mono font-bold text-[#52525b]">{m.codigo}</div>
+                      <div className="text-xs font-bold text-[#111111] truncate">{m.nombre}</div>
+                      {amigos.length > 0 && (
+                        <div
+                          className="text-[10px] font-mono text-[#111111] mt-0.5 flex items-center gap-1 font-bold"
+                          title={formatearCursandoTexto(amigos)}
+                        >
+                          <Users className="w-3 h-3 text-[#111111] shrink-0" aria-hidden="true" />
+                          <span>{formatearBadgeCursando(amigos.length)} ({formatearCursandoTexto(amigos)})</span>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onActualizarEstado(m.id, 'REGULAR')}
+                      className="px-2 py-1 bg-white text-[#111111] border border-[#111111] text-[11px] font-mono font-bold uppercase hover:bg-[#ccff00] flex-shrink-0 cursor-pointer"
+                    >
+                      Regularicé
+                    </button>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </section>

@@ -38,6 +38,7 @@ export default function App() {
     cargando: cargandoGrupo,
     disponible: gruposDisponibles,
     logros,
+    cursandoPorMateria,
     descartarLogro,
     crearGrupo,
     unirseGrupo,
@@ -173,6 +174,7 @@ export default function App() {
               onNavigateToAgenda={handleNavigateToAgenda}
               onActualizarEstado={actualizarEstado}
               cargarEventos={cargarEventos}
+              cursandoPorMateria={cursandoPorMateria}
             />
           )}
 
@@ -184,6 +186,7 @@ export default function App() {
               actualizarEstado={actualizarEstado}
               showToast={showToast}
               showConfirm={showConfirm}
+              cursandoPorMateria={cursandoPorMateria}
             />
           )}
 

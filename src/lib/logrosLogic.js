@@ -112,3 +112,91 @@ export async function copiarAlPortapapeles(texto) {
     return false
   }
 }
+
+// ── Lógica de "Quién cursa esto ahora" en el grupo ───────────────────────
+
+/**
+ * Reconstruye el mapa { [materia_id]: [{ usuario_id, apodo }] } a partir
+ * de la lista de entradas de GET /grupos/mio/cursando, excluyendo al usuario actual.
+ */
+export function reconstruirCursandoPorMateria(entries = [], miUsuarioId = null) {
+  if (!Array.isArray(entries)) return {}
+  const mapa = {}
+  for (const entry of entries) {
+    if (!entry || typeof entry.materia_id === 'undefined') continue
+    if (miUsuarioId != null && entry.usuario_id === miUsuarioId) continue
+    const mId = entry.materia_id
+    if (!mapa[mId]) {
+      mapa[mId] = []
+    }
+    // Evitar entradas duplicadas del mismo usuario en la misma materia
+    if (!mapa[mId].some(u => u.usuario_id === entry.usuario_id)) {
+      mapa[mId].push({
+        usuario_id: entry.usuario_id,
+        apodo: entry.apodo || 'Compañero'
+      })
+    }
+  }
+  return mapa
+}
+
+/**
+ * Aplica un evento en vivo 'grupo_cursando' { usuario_id, apodo, materia_id, cursando: boolean }
+ * sobre el mapa cursandoPorMateria existente, devolviendo un nuevo mapa inmutable.
+ * Excluye los eventos del propio usuario.
+ */
+export function aplicarEventoGrupoCursando(mapaActual = {}, evento = {}, miUsuarioId = null) {
+  if (!evento || typeof evento.materia_id === 'undefined') return mapaActual
+  if (miUsuarioId != null && evento.usuario_id === miUsuarioId) return mapaActual
+
+  const mId = evento.materia_id
+  const listaActual = mapaActual[mId] || []
+
+  if (evento.cursando) {
+    const yaExiste = listaActual.some(u => u.usuario_id === evento.usuario_id)
+    const nuevaLista = yaExiste
+      ? listaActual.map(u => u.usuario_id === evento.usuario_id ? { ...u, apodo: evento.apodo || u.apodo } : u)
+      : [...listaActual, { usuario_id: evento.usuario_id, apodo: evento.apodo || 'Compañero' }]
+    return {
+      ...mapaActual,
+      [mId]: nuevaLista
+    }
+  } else {
+    const nuevaLista = listaActual.filter(u => u.usuario_id !== evento.usuario_id)
+    if (nuevaLista.length === 0) {
+      const nuevoMapa = { ...mapaActual }
+      delete nuevoMapa[mId]
+      return nuevoMapa
+    }
+    return {
+      ...mapaActual,
+      [mId]: nuevaLista
+    }
+  }
+}
+
+/**
+ * Formatea los apodos de quienes están cursando para la ficha de materia:
+ * - 1 amigo: "Fulano"
+ * - 2 amigos: "Fulano, Mengano"
+ * - 3+ amigos: "Fulano y N más"
+ */
+export function formatearCursandoTexto(amigos = []) {
+  if (!Array.isArray(amigos) || amigos.length === 0) return ''
+  const apodos = amigos.map(a => a.apodo).filter(Boolean)
+  if (apodos.length === 0) return ''
+  if (apodos.length === 1) return apodos[0]
+  if (apodos.length === 2) return `${apodos[0]}, ${apodos[1]}`
+  return `${apodos[0]} y ${apodos.length - 1} más`
+}
+
+/**
+ * Formatea el texto del badge para tarjetas (Hoy / Listas):
+ * - 1 amigo: "1 amigo la cursa"
+ * - 2+ amigos: "N amigos la cursan"
+ */
+export function formatearBadgeCursando(cantidad = 0) {
+  if (!cantidad || cantidad <= 0) return ''
+  if (cantidad === 1) return '1 amigo la cursa'
+  return `${cantidad} amigos la cursan`
+}
