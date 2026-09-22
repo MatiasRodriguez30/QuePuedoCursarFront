@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { apiRequest } from './api'
-import { logrosReducer, logrosInitialState } from './logrosLogic'
+import {
+  logrosReducer,
+  logrosInitialState,
+  reconstruirCursandoPorMateria,
+  aplicarEventoGrupoCursando
+} from './logrosLogic'
 
 export function useGrupo({ subscribeWsEvents, usuario, onUsuarioUpdate, showToast }) {
   const [grupo, setGrupo] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [disponible, setDisponible] = useState(true)
   const [logros, dispatchLogros] = useReducer(logrosReducer, logrosInitialState)
+  const [cursandoPorMateria, setCursandoPorMateria] = useState({})
 
   const grupoRef = useRef(grupo)
   grupoRef.current = grupo
@@ -18,6 +24,7 @@ export function useGrupo({ subscribeWsEvents, usuario, onUsuarioUpdate, showToas
   const cargarGrupo = useCallback(async () => {
     if (!usuario) {
       setGrupo(null)
+      setCursandoPorMateria({})
       setCargando(false)
       return
     }
@@ -30,22 +37,38 @@ export function useGrupo({ subscribeWsEvents, usuario, onUsuarioUpdate, showToas
       if (data.yo?.apodo && usuarioRef.current && usuarioRef.current.apodo !== data.yo.apodo) {
         onUsuarioUpdate?.({ ...usuarioRef.current, apodo: data.yo.apodo })
       }
+      // Cargar mapa de quién cursa qué en el grupo
+      try {
+        const cursandoData = await apiRequest('/grupos/mio/cursando')
+        setCursandoPorMateria(reconstruirCursandoPorMateria(cursandoData, usuarioRef.current?.id))
+      } catch (cErr) {
+        if (cErr.status === 404 && cErr.message?.includes('No estás en ningún grupo')) {
+          setCursandoPorMateria({})
+        } else if (cErr.status === 404 || cErr.status >= 500) {
+          setCursandoPorMateria({})
+          setDisponible(false)
+        }
+      }
     } catch (err) {
       // 404 exacto "No estás en ningún grupo" es estado normal
       if (err.status === 404 && err.message?.includes('No estás en ningún grupo')) {
         setGrupo(null)
         setDisponible(true)
+        setCursandoPorMateria({})
       } else if (err.status === 404) {
         // 404 genérico de ruta no encontrada ("Not Found") => backend viejo sin soporte de grupos
         setGrupo(null)
         setDisponible(false)
+        setCursandoPorMateria({})
       } else if (err.status >= 500) {
         // Error de servidor => ocultar para no romper la app
         setGrupo(null)
         setDisponible(false)
+        setCursandoPorMateria({})
       } else {
         setGrupo(null)
         setDisponible(true)
+        setCursandoPorMateria({})
       }
     } finally {
       setCargando(false)
@@ -109,6 +132,13 @@ export function useGrupo({ subscribeWsEvents, usuario, onUsuarioUpdate, showToas
         setTimeout(() => {
           dispatchLogros({ type: 'DESCARTAR_LOGRO', id: logroId })
         }, 6000)
+        return
+      }
+
+      // 4. Quién cursa esto ahora: evento grupo_cursando
+      if (event === 'grupo_cursando' && data) {
+        setCursandoPorMateria(prev => aplicarEventoGrupoCursando(prev, data, usuarioRef.current?.id))
+        return
       }
     })
 
@@ -124,6 +154,12 @@ export function useGrupo({ subscribeWsEvents, usuario, onUsuarioUpdate, showToas
         body: JSON.stringify({ nombre: nombre.trim() })
       })
       setGrupo(data)
+      try {
+        const cData = await apiRequest('/grupos/mio/cursando')
+        setCursandoPorMateria(reconstruirCursandoPorMateria(cData, usuarioRef.current?.id))
+      } catch {
+        setCursandoPorMateria({})
+      }
       showToast?.('success', '¡Grupo Creado!', `Te uniste a "${data.nombre}"`)
       return { ok: true, grupo: data }
     } catch (err) {
@@ -142,6 +178,12 @@ export function useGrupo({ subscribeWsEvents, usuario, onUsuarioUpdate, showToas
         body: JSON.stringify({ codigo: codigo.trim().toUpperCase() })
       })
       setGrupo(data)
+      try {
+        const cData = await apiRequest('/grupos/mio/cursando')
+        setCursandoPorMateria(reconstruirCursandoPorMateria(cData, usuarioRef.current?.id))
+      } catch {
+        setCursandoPorMateria({})
+      }
       showToast?.('success', '¡Te Uniste al Grupo!', `Bienvenido a "${data.nombre}"`)
       return { ok: true, grupo: data }
     } catch (err) {
@@ -165,6 +207,16 @@ export function useGrupo({ subscribeWsEvents, usuario, onUsuarioUpdate, showToas
         body: JSON.stringify({ comparte })
       })
       setGrupo(data)
+      if (comparte) {
+        try {
+          const cData = await apiRequest('/grupos/mio/cursando')
+          setCursandoPorMateria(reconstruirCursandoPorMateria(cData, usuarioRef.current?.id))
+        } catch {
+          setCursandoPorMateria({})
+        }
+      } else {
+        setCursandoPorMateria({})
+      }
       showToast?.('info', 'Preferencia Guardada', comparte ? 'Ahora compartís y recibís logros del grupo' : 'Progreso en modo privado (no compartís ni recibís logros)')
       return { ok: true, grupo: data }
     } catch (err) {
@@ -177,6 +229,7 @@ export function useGrupo({ subscribeWsEvents, usuario, onUsuarioUpdate, showToas
     try {
       await apiRequest('/grupos/salir', { method: 'POST' })
       setGrupo(null)
+      setCursandoPorMateria({})
       dispatchLogros({ type: 'LIMPIAR_LOGROS' })
       showToast?.('info', 'Saliste del Grupo', 'Ya no pertenecés a ningún grupo')
       return { ok: true }
@@ -221,6 +274,7 @@ export function useGrupo({ subscribeWsEvents, usuario, onUsuarioUpdate, showToas
     cargando,
     disponible,
     logros,
+    cursandoPorMateria,
     descartarLogro,
     crearGrupo,
     unirseGrupo,

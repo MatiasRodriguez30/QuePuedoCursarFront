@@ -4,9 +4,11 @@ import {
   RotateCcw,
   Search,
   Undo2,
+  Users,
   X
 } from 'lucide-react'
 import { apiRequest } from '../lib/api'
+import { formatearCursandoTexto } from '../lib/logrosLogic'
 import {
   checkCursadaRequirements,
   computeImpactoCascada,
@@ -31,6 +33,7 @@ export default function CarreraSurface({
   actualizarEstado,
   showToast,
   showConfirm,
+  cursandoPorMateria = {},
 }) {
   const [query, setQuery] = useState('')
   const queryDiferida = useDeferredValue(query)
@@ -330,6 +333,7 @@ export default function CarreraSurface({
               onChangeEstado={handleChangeEstado}
               ultimoCambio={ultimoCambio}
               onUndo={handleUndo}
+              cursandoPorMateria={cursandoPorMateria}
             />
           </aside>
         )}
@@ -351,6 +355,7 @@ export default function CarreraSurface({
               onChangeEstado={handleChangeEstado}
               ultimoCambio={ultimoCambio}
               onUndo={handleUndo}
+              cursandoPorMateria={cursandoPorMateria}
             />
           </div>
         </div>
@@ -457,11 +462,13 @@ function HojaDeDetalleContenido({
   onChangeEstado,
   ultimoCambio,
   onUndo,
+  cursandoPorMateria = {},
 }) {
   const estado = ctx.estadosMap[materia.id] || 'NO_CURSADA'
   const reqCheck = checkCursadaRequirements(materia.id, ctx)
   const isLista = estado === 'NO_CURSADA' && reqCheck.puede
   const cascada = useMemo(() => computeImpactoCascada(materia.id, ctx), [materia.id, ctx])
+  const amigosCursando = cursandoPorMateria[materia.id] || []
 
   // Acción contextual principal (una sola según estado)
   let accionPrincipal = null
@@ -658,6 +665,19 @@ function HojaDeDetalleContenido({
           </ul>
         )}
       </div>
+
+      {/* Quién cursa esto ahora en el grupo */}
+      {amigosCursando.length > 0 && (
+        <div className="pt-2 border-t-2 border-[#111111]">
+          <div className="flex items-center gap-2 p-2.5 bg-[#f4f0e6] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] text-xs font-mono">
+            <Users className="w-4 h-4 text-[#111111] shrink-0" aria-hidden="true" />
+            <div className="min-w-0 text-[#111111] leading-tight">
+              <span className="font-bold">Lo están cursando: </span>
+              <span>{formatearCursandoTexto(amigosCursando)}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

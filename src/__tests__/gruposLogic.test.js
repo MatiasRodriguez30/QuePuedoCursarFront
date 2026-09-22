@@ -5,7 +5,11 @@ import {
   validarApodo,
   validarCodigoGrupo,
   validarNombreGrupo,
-  MAX_SELLOS_VISIBLES
+  MAX_SELLOS_VISIBLES,
+  reconstruirCursandoPorMateria,
+  aplicarEventoGrupoCursando,
+  formatearCursandoTexto,
+  formatearBadgeCursando
 } from '../lib/logrosLogic'
 
 describe('gruposLogic - Validación de Apodo', () => {
@@ -98,5 +102,106 @@ describe('gruposLogic - Reducer de Cola de Logros en Vivo', () => {
 
     state = logrosReducer(state, { type: 'LIMPIAR_LOGROS' })
     expect(state).toEqual([])
+  })
+})
+
+describe('gruposLogic - Mapa de Cursando Por Materia', () => {
+  it('reconstruye el mapa agrupado por materia y excluye al propio usuario', () => {
+    const rawEntries = [
+      { materia_id: 10, usuario_id: 1, apodo: 'Yo Mismo' },
+      { materia_id: 10, usuario_id: 2, apodo: 'Marta' },
+      { materia_id: 10, usuario_id: 3, apodo: 'Lucas' },
+      { materia_id: 25, usuario_id: 2, apodo: 'Marta' }, // El mismo usuario cursa otra materia
+      { materia_id: 10, usuario_id: 2, apodo: 'Marta' }, // Duplicado accidental
+    ]
+
+    const mapa = reconstruirCursandoPorMateria(rawEntries, 1)
+
+    // El propio usuario (id 1) no debe aparecer
+    expect(mapa[10]).toHaveLength(2)
+    expect(mapa[10]).toEqual([
+      { usuario_id: 2, apodo: 'Marta' },
+      { usuario_id: 3, apodo: 'Lucas' },
+    ])
+    expect(mapa[25]).toEqual([
+      { usuario_id: 2, apodo: 'Marta' }
+    ])
+  })
+
+  it('maneja entradas vacías, nulas o inválidas sin romper', () => {
+    expect(reconstruirCursandoPorMateria(null, 1)).toEqual({})
+    expect(reconstruirCursandoPorMateria([], 1)).toEqual({})
+    expect(reconstruirCursandoPorMateria([{ materia_id: 1, usuario_id: 1 }], 1)).toEqual({})
+    expect(reconstruirCursandoPorMateria([null, undefined, {}], 1)).toEqual({})
+  })
+
+  it('aplica evento grupo_cursando agregando un compañero a la materia', () => {
+    const inicial = {
+      10: [{ usuario_id: 2, apodo: 'Marta' }]
+    }
+
+    const evento = {
+      usuario_id: 5,
+      apodo: 'Sofía',
+      materia_id: 10,
+      cursando: true
+    }
+
+    const res = aplicarEventoGrupoCursando(inicial, evento, 1)
+    expect(res[10]).toHaveLength(2)
+    expect(res[10][1]).toEqual({ usuario_id: 5, apodo: 'Sofía' })
+  })
+
+  it('aplica evento grupo_cursando quitando un compañero y eliminando la clave si queda vacía', () => {
+    const inicial = {
+      10: [{ usuario_id: 2, apodo: 'Marta' }, { usuario_id: 3, apodo: 'Lucas' }],
+      20: [{ usuario_id: 2, apodo: 'Marta' }]
+    }
+
+    // Quitar Lucas de materia 10
+    const res1 = aplicarEventoGrupoCursando(inicial, {
+      usuario_id: 3,
+      apodo: 'Lucas',
+      materia_id: 10,
+      cursando: false
+    }, 1)
+    expect(res1[10]).toEqual([{ usuario_id: 2, apodo: 'Marta' }])
+
+    // Quitar Marta de materia 20 -> clave 20 se elimina
+    const res2 = aplicarEventoGrupoCursando(res1, {
+      usuario_id: 2,
+      apodo: 'Marta',
+      materia_id: 20,
+      cursando: false
+    }, 1)
+    expect(res2[20]).toBeUndefined()
+  })
+
+  it('ignora eventos grupo_cursando del propio usuario', () => {
+    const inicial = { 10: [{ usuario_id: 2, apodo: 'Marta' }] }
+    const eventoPropio = {
+      usuario_id: 1,
+      apodo: 'Yo Mismo',
+      materia_id: 10,
+      cursando: true
+    }
+
+    const res = aplicarEventoGrupoCursando(inicial, eventoPropio, 1)
+    expect(res).toBe(inicial)
+  })
+
+  it('formatea texto de cursando correctamente según la cantidad de compañeros', () => {
+    expect(formatearCursandoTexto([])).toBe('')
+    expect(formatearCursandoTexto([{ apodo: 'Marta' }])).toBe('Marta')
+    expect(formatearCursandoTexto([{ apodo: 'Marta' }, { apodo: 'Lucas' }])).toBe('Marta, Lucas')
+    expect(formatearCursandoTexto([{ apodo: 'Marta' }, { apodo: 'Lucas' }, { apodo: 'Sofía' }])).toBe('Marta y 2 más')
+    expect(formatearCursandoTexto([{ apodo: 'Marta' }, { apodo: 'Lucas' }, { apodo: 'Sofía' }, { apodo: 'Tito' }])).toBe('Marta y 3 más')
+  })
+
+  it('formatea badge de cursando para tarjetas de Hoy', () => {
+    expect(formatearBadgeCursando(0)).toBe('')
+    expect(formatearBadgeCursando(1)).toBe('1 amigo la cursa')
+    expect(formatearBadgeCursando(2)).toBe('2 amigos la cursan')
+    expect(formatearBadgeCursando(5)).toBe('5 amigos la cursan')
   })
 })
