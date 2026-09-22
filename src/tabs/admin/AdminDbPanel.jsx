@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, ChevronLeft, ChevronRight, Database, KeyRound, Link2, Lock, Table2 } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Database, GitFork, KeyRound, Link2, List, Lock, Table2 } from 'lucide-react'
 import { apiRequest } from '../../lib/api'
+import DiagramaRelacional from './DiagramaRelacional'
 
 const FILAS_POR_PAGINA = 50
 
@@ -8,6 +9,7 @@ export default function AdminDbPanel({ showToast }) {
   const [tablas, setTablas] = useState(null)
   const [errorTablas, setErrorTablas] = useState(null)
   const [tablaActiva, setTablaActiva] = useState(null)
+  const [vista, setVista] = useState('lista')
 
   useEffect(() => {
     apiRequest('/admin/db/tablas')
@@ -37,20 +39,52 @@ export default function AdminDbPanel({ showToast }) {
 
   return (
     <div className="space-y-5">
-      <div className="pb-3 border-b-2 border-[#111111]">
-        <h2 className="font-display text-sm sm:text-base font-bold uppercase text-[#111111] flex items-center gap-2">
-          <Database className="w-4 h-4 text-[#111111]" aria-hidden="true" />
-          Base de Datos
-        </h2>
-        <p className="text-xs font-mono text-[#52525b] mt-0.5">
-          Solo lectura: mirá tablas, columnas, relaciones y filas. No se puede editar ni borrar nada desde acá.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b-2 border-[#111111]">
+        <div>
+          <h2 className="font-display text-sm sm:text-base font-bold uppercase text-[#111111] flex items-center gap-2">
+            <Database className="w-4 h-4 text-[#111111]" aria-hidden="true" />
+            Base de Datos
+          </h2>
+          <p className="text-xs font-mono text-[#52525b] mt-0.5">
+            Solo lectura: mirá tablas, columnas, relaciones y filas. No se puede editar ni borrar nada desde acá.
+          </p>
+        </div>
+        {tablas !== null && (
+          <div className="flex gap-1.5 shrink-0" role="tablist" aria-label="Vista de la base de datos">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={vista === 'lista'}
+              onClick={() => setVista('lista')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-bold uppercase border-2 border-[#111111] cursor-pointer min-h-[44px] ${
+                vista === 'lista' ? 'bg-[#111111] text-[#ccff00]' : 'bg-white text-[#111111] hover:bg-[#fff9db]'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" aria-hidden="true" />
+              Lista
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={vista === 'diagrama'}
+              onClick={() => setVista('diagrama')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-bold uppercase border-2 border-[#111111] cursor-pointer min-h-[44px] ${
+                vista === 'diagrama' ? 'bg-[#111111] text-[#ccff00]' : 'bg-white text-[#111111] hover:bg-[#fff9db]'
+              }`}
+            >
+              <GitFork className="w-3.5 h-3.5" aria-hidden="true" />
+              Diagrama
+            </button>
+          </div>
+        )}
       </div>
 
       {tablas === null ? (
         <div className="p-8 text-center bg-[#f4f0e6] border-2 border-dashed border-[#111111]">
           <p className="text-xs font-mono font-bold uppercase text-[#52525b]">Cargando esquema...</p>
         </div>
+      ) : vista === 'diagrama' ? (
+        <DiagramaRelacional tablas={tablas} onVerTabla={setTablaActiva} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {tablas.map(t => (
