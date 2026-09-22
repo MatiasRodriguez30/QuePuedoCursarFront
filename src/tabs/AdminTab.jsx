@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import { Calendar, GitFork, GraduationCap, Settings, Users } from 'lucide-react'
+import { Calendar, Database, GitFork, GraduationCap, Settings, Users } from 'lucide-react'
 import AdminMateriasPanel from './admin/AdminMateriasPanel'
 import AdminCarrerasPanel from './admin/AdminCarrerasPanel'
 import AdminConfigPanel from './admin/AdminConfigPanel'
 import AdminUsuariosPanel from './admin/AdminUsuariosPanel'
+import AdminDbPanel from './admin/AdminDbPanel'
 
 const SECCIONES = [
   { id: 'materias', label: 'Materias', icon: GitFork },
   { id: 'carreras', label: 'Carreras', icon: GraduationCap },
   { id: 'periodo', label: 'Período', icon: Calendar },
   { id: 'usuarios', label: 'Usuarios', icon: Users },
+  { id: 'db', label: 'Base de Datos', icon: Database },
 ]
 
 export default function AdminTab({ ctx, showToast, showConfirm, setConfigApp, usuarioActualId }) {
@@ -62,6 +64,7 @@ export default function AdminTab({ ctx, showToast, showConfirm, setConfigApp, us
         {seccion === 'carreras' && <AdminCarrerasPanel ctx={ctx} showToast={showToast} showConfirm={showConfirm} />}
         {seccion === 'periodo' && <AdminConfigPanel ctx={ctx} showToast={showToast} setConfigApp={setConfigApp} />}
         {seccion === 'usuarios' && <AdminUsuariosPanel showToast={showToast} usuarioActualId={usuarioActualId} />}
+        {seccion === 'db' && <AdminDbPanel showToast={showToast} />}
       </div>
     </div>
   )
