@@ -4,6 +4,7 @@ import ToastContainer from './components/ToastContainer'
 import ConfirmDialog from './components/ConfirmDialog'
 import GrupoModal from './components/GrupoModal'
 import RankingModal from './components/RankingModal'
+import PerfilModal from './components/PerfilModal'
 import SelloLogroContainer from './components/SelloLogroContainer'
 import LoginScreen from './components/LoginScreen'
 import ResetPasswordScreen from './components/ResetPasswordScreen'
@@ -29,6 +30,8 @@ export default function App() {
   const [adminOpen, setAdminOpen] = useState(false)
   const [grupoModalOpen, setGrupoModalOpen] = useState(false)
   const [rankingModalOpen, setRankingModalOpen] = useState(false)
+  const [perfilModalOpen, setPerfilModalOpen] = useState(false)
+  const [perfilUsuarioId, setPerfilUsuarioId] = useState(null)
 
   const { toasts, showToast, dismiss } = useToasts()
   const { confirmState, showConfirm, resolveConfirm } = useConfirm()
@@ -233,6 +236,15 @@ export default function App() {
         onAbrirRanking={() => setRankingModalOpen(true)}
         showConfirm={showConfirm}
         showToast={showToast}
+        onVerPerfil={(id) => {
+          setPerfilUsuarioId(id)
+          setPerfilModalOpen(true)
+        }}
+      />
+      <PerfilModal
+        isOpen={perfilModalOpen}
+        onClose={() => setPerfilModalOpen(false)}
+        usuarioId={perfilUsuarioId}
       />
       <RankingModal
         isOpen={rankingModalOpen}
