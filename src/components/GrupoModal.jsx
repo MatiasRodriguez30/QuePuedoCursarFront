@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Copy, LogOut, Radio, Users, X } from 'lucide-react'
+import { Check, Copy, LogOut, Radio, Trophy, Users, X } from 'lucide-react'
 import TitoAvatar from './TitoAvatar'
 import {
   copiarAlPortapapeles,
@@ -20,8 +20,10 @@ export default function GrupoModal({
   onCambiarPreferencia,
   onSalirGrupo,
   onActualizarApodo,
+  onAbrirRanking,
   showConfirm,
   showToast,
+  onVerPerfil,
 }) {
   const [tab, setTab] = useState('crear') // 'crear' | 'unirse'
   const [nombreNuevo, setNombreNuevo] = useState('')
@@ -386,6 +388,17 @@ export default function GrupoModal({
                   <Radio className="w-3.5 h-3.5 text-[#111111]" aria-hidden="true" />
                   Compañeros del Grupo
                 </span>
+                {onAbrirRanking && (
+                  <button
+                    type="button"
+                    onClick={onAbrirRanking}
+                    aria-label="Ver ranking del grupo"
+                    className="flex items-center gap-1 px-2 py-1 text-[11px] font-mono font-bold uppercase bg-white hover:bg-[#fff9db] text-[#111111] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] cursor-pointer active:translate-x-0.5 active:translate-y-0.5 transition-all"
+                  >
+                    <Trophy className="w-3.5 h-3.5 text-[#111111]" aria-hidden="true" />
+                    <span>Ranking</span>
+                  </button>
+                )}
               </div>
 
               <ul className="space-y-1.5 max-h-40 overflow-y-auto pr-1" aria-label="Lista de compañeros de grupo">
@@ -395,7 +408,17 @@ export default function GrupoModal({
                   return (
                     <li
                       key={m.usuario_id}
-                      className="flex items-center justify-between p-1.5 bg-[#f4f0e6] border border-[#111111] text-xs font-mono"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onVerPerfil?.(m.usuario_id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          onVerPerfil?.(m.usuario_id)
+                        }
+                      }}
+                      className="flex items-center justify-between p-1.5 bg-[#f4f0e6] hover:bg-[#fff9db] border border-[#111111] text-xs font-mono cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-[#111111]"
+                      aria-label={`Ver perfil de ${m.apodo || 'Cobayo'}`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-6 h-6 bg-[#fffdfa] border border-[#111111] flex items-center justify-center font-bold text-[11px] text-[#111111] flex-shrink-0">
@@ -439,9 +462,20 @@ export default function GrupoModal({
 
             {/* 3. Preferencias de Identidad y Privacidad */}
             <div className="border-2 border-[#111111] bg-[#f4f0e6] p-3 space-y-3 shadow-[2px_2px_0px_#111111]">
-              <span className="block text-[10px] font-mono font-bold uppercase text-[#71717a] tracking-wider">
-                Tu Identidad en el Grupo
-              </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="block text-[10px] font-mono font-bold uppercase text-[#71717a] tracking-wider">
+                  Tu Identidad en el Grupo
+                </span>
+                {usuario?.id && (
+                  <button
+                    type="button"
+                    onClick={() => onVerPerfil?.(usuario.id)}
+                    className="px-2.5 py-1 bg-white hover:bg-[#fff9db] text-[#111111] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] text-[10px] font-mono font-bold uppercase cursor-pointer transition-all active:translate-x-0.5 active:translate-y-0.5"
+                  >
+                    Ver mi progreso
+                  </button>
+                )}
+              </div>
 
               {/* Editar Apodo */}
               <form onSubmit={handleGuardarApodo} className="space-y-1.5">
