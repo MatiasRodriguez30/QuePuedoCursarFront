@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Copy, LogOut, Radio, Users, X } from 'lucide-react'
+import { Check, Copy, LogOut, Radio, Trophy, Users, X } from 'lucide-react'
 import TitoAvatar from './TitoAvatar'
 import {
   copiarAlPortapapeles,
@@ -20,6 +20,7 @@ export default function GrupoModal({
   onCambiarPreferencia,
   onSalirGrupo,
   onActualizarApodo,
+  onAbrirRanking,
   showConfirm,
   showToast,
 }) {
@@ -386,6 +387,17 @@ export default function GrupoModal({
                   <Radio className="w-3.5 h-3.5 text-[#111111]" aria-hidden="true" />
                   Compañeros del Grupo
                 </span>
+                {onAbrirRanking && (
+                  <button
+                    type="button"
+                    onClick={onAbrirRanking}
+                    aria-label="Ver ranking del grupo"
+                    className="flex items-center gap-1 px-2 py-1 text-[11px] font-mono font-bold uppercase bg-white hover:bg-[#fff9db] text-[#111111] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] cursor-pointer active:translate-x-0.5 active:translate-y-0.5 transition-all"
+                  >
+                    <Trophy className="w-3.5 h-3.5 text-[#111111]" aria-hidden="true" />
+                    <span>Ranking</span>
+                  </button>
+                )}
               </div>
 
               <ul className="space-y-1.5 max-h-40 overflow-y-auto pr-1" aria-label="Lista de compañeros de grupo">

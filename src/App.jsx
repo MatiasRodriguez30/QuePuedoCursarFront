@@ -3,6 +3,7 @@ import Shell from './components/Shell'
 import ToastContainer from './components/ToastContainer'
 import ConfirmDialog from './components/ConfirmDialog'
 import GrupoModal from './components/GrupoModal'
+import RankingModal from './components/RankingModal'
 import SelloLogroContainer from './components/SelloLogroContainer'
 import LoginScreen from './components/LoginScreen'
 import ResetPasswordScreen from './components/ResetPasswordScreen'
@@ -27,6 +28,7 @@ export default function App() {
   const [targetMateriaId, setTargetMateriaId] = useState(null)
   const [adminOpen, setAdminOpen] = useState(false)
   const [grupoModalOpen, setGrupoModalOpen] = useState(false)
+  const [rankingModalOpen, setRankingModalOpen] = useState(false)
 
   const { toasts, showToast, dismiss } = useToasts()
   const { confirmState, showConfirm, resolveConfirm } = useConfirm()
@@ -228,8 +230,14 @@ export default function App() {
         onCambiarPreferencia={cambiarPreferencia}
         onSalirGrupo={salirGrupo}
         onActualizarApodo={actualizarApodo}
+        onAbrirRanking={() => setRankingModalOpen(true)}
         showConfirm={showConfirm}
         showToast={showToast}
+      />
+      <RankingModal
+        isOpen={rankingModalOpen}
+        onClose={() => setRankingModalOpen(false)}
+        usuario={usuario}
       />
     </Shell>
   )
