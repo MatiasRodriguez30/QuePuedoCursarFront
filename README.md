@@ -24,7 +24,9 @@ Para apuntar a un backend local, creá un archivo `.env.local` (queda fuera de g
 ## Tests y calidad
 
 ```bash
-npm run lint      # oxlint
-npm test -- --run # vitest
-npm run build     # vite build
+npm run verify    # lint + tests + build; tiene que terminar en "VERIFICACION: OK"
 ```
+
+Por separado: `npm run lint` (oxlint), `npm test -- --run` (vitest), `npm run build` (vite).
+
+En GitHub, cada PR y cada push a `main` corren automáticamente (`.github/workflows/ci.yml`) lint, tests, build y búsqueda de secretos (gitleaks). La rama `main` está protegida: no se puede pushear directo ni mergear un PR si alguno de esos controles falla. Las variables locales van en `.env.local`; `.env` y `.env.*` están ignorados por git (salvo `.env.example`).
