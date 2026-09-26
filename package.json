@@ -9,6 +9,7 @@
         "lint": "oxlint",
         "preview": "vite preview",
         "test": "vitest",
+        "verify": "npm run lint && vitest run && npm run build && echo VERIFICACION: OK",
         "test:ui": "vitest --ui"
     },
     "dependencies": {
