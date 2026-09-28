@@ -23,11 +23,12 @@ export default function EventoModal({ evento, fechaPorDefecto, onClose, showToas
         personal: evento.personal,
       })
     } else {
-      // Un usuario que no es admin sólo puede crear eventos personales: el
-      // toggle ni se le muestra, así que arranca en true.
-      setForm({ ...EMPTY, fecha: fechaPorDefecto || '', personal: esAdmin ? false : true })
+      // Personal por defecto para cualquiera, admin incluido: un usuario
+      // normal ni puede crear otra cosa, y al admin le pedimos que marque
+      // explícitamente cuando quiere que algo sea general.
+      setForm({ ...EMPTY, fecha: fechaPorDefecto || '' })
     }
-  }, [evento, fechaPorDefecto, esAdmin])
+  }, [evento, fechaPorDefecto])
 
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onClose() }
@@ -175,22 +176,23 @@ export default function EventoModal({ evento, fechaPorDefecto, onClose, showToas
             />
           </div>
 
-          {/* Sólo el admin puede decidir si un evento es institucional (para
-              todos) o personal; un usuario normal sólo agenda lo suyo. */}
+          {/* Todo evento nace personal. Sólo el admin puede tildar esto para
+              volverlo general (institucional, visible para todos); un
+              usuario normal no tiene esa opción y siempre queda personal. */}
           {esAdmin ? (
             <label className="flex items-start gap-2.5 p-2.5 bg-[#f4f0e6] border-2 border-[#111111] cursor-pointer">
               <input
                 type="checkbox"
-                checked={form.personal}
-                onChange={e => setForm(f => ({ ...f, personal: e.target.checked }))}
+                checked={!form.personal}
+                onChange={e => setForm(f => ({ ...f, personal: !e.target.checked }))}
                 className="mt-0.5 w-4 h-4 accent-[#111111] cursor-pointer"
               />
               <span className="text-xs font-mono text-[#111111]">
-                <span className="font-bold uppercase">Evento personal</span>
+                <span className="font-bold uppercase">Evento general (para todos)</span>
                 <br />
                 {form.personal
-                  ? 'Sólo lo vas a ver vos. Destildá esto para que sea institucional (visible para todos).'
-                  : 'Institucional: lo va a ver todo el mundo en la agenda.'}
+                  ? 'Por defecto es personal: sólo lo vas a ver vos. Tildá esto para que sea institucional, visible en la agenda y el mail de todos.'
+                  : 'Institucional: lo va a ver todo el mundo en la agenda y en su mail de recordatorios.'}
               </span>
             </label>
           ) : (
