@@ -211,6 +211,7 @@ export default function App() {
                 showToast={showToast}
                 showConfirm={showConfirm}
                 esAdmin={esAdmin}
+                usuarioId={usuario?.id}
                 cargarEventos={cargarEventos}
               />
             </Suspense>
