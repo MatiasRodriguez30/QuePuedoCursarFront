@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { CalendarPlus, Edit, X } from 'lucide-react'
+import { CalendarPlus, Edit, Lock, X } from 'lucide-react'
 import { apiRequest } from '../lib/api'
 
-const EMPTY = { titulo: '', fecha: '', hora_inicio: '', hora_fin: '', ubicacion: '', descripcion: '' }
+const EMPTY = { titulo: '', fecha: '', hora_inicio: '', hora_fin: '', ubicacion: '', descripcion: '', personal: true }
 const MODAL_TITLE_ID = 'evento-modal-title'
 
-export default function EventoModal({ evento, fechaPorDefecto, onClose, showToast }) {
+export default function EventoModal({ evento, fechaPorDefecto, onClose, showToast, esAdmin }) {
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const isEdit = !!evento
@@ -20,11 +20,14 @@ export default function EventoModal({ evento, fechaPorDefecto, onClose, showToas
         hora_fin: evento.hora_fin ? evento.hora_fin.slice(0, 5) : '',
         ubicacion: evento.ubicacion || '',
         descripcion: evento.descripcion || '',
+        personal: evento.personal,
       })
     } else {
-      setForm({ ...EMPTY, fecha: fechaPorDefecto || '' })
+      // Un usuario que no es admin sólo puede crear eventos personales: el
+      // toggle ni se le muestra, así que arranca en true.
+      setForm({ ...EMPTY, fecha: fechaPorDefecto || '', personal: esAdmin ? false : true })
     }
-  }, [evento, fechaPorDefecto])
+  }, [evento, fechaPorDefecto, esAdmin])
 
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onClose() }
@@ -43,13 +46,15 @@ export default function EventoModal({ evento, fechaPorDefecto, onClose, showToas
         hora_fin: form.hora_fin || null,
         ubicacion: form.ubicacion ? form.ubicacion.trim() : null,
         descripcion: form.descripcion ? form.descripcion.trim() : null,
+        personal: form.personal,
       }
       if (isEdit) {
         await apiRequest(`/eventos/${evento.id}`, { method: 'PUT', body: JSON.stringify(payload) })
       } else {
         await apiRequest('/eventos', { method: 'POST', body: JSON.stringify(payload) })
       }
-      // No mostramos toast de éxito acá: el WebSocket ya lo emite para todos los clientes
+      // No mostramos toast de éxito acá: el WebSocket ya lo emite (a todos si
+      // es institucional, sólo a quien lo creó si es personal)
       onClose()
     } catch (err) {
       showToast('error', 'Error', err.message)
@@ -169,6 +174,33 @@ export default function EventoModal({ evento, fechaPorDefecto, onClose, showToas
               className="w-full bg-[#f4f0e6] border-2 border-[#111111] px-3 py-2 text-xs font-mono text-[#111111] placeholder-[#71717a] focus:outline-none focus:bg-white"
             />
           </div>
+
+          {/* Sólo el admin puede decidir si un evento es institucional (para
+              todos) o personal; un usuario normal sólo agenda lo suyo. */}
+          {esAdmin ? (
+            <label className="flex items-start gap-2.5 p-2.5 bg-[#f4f0e6] border-2 border-[#111111] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.personal}
+                onChange={e => setForm(f => ({ ...f, personal: e.target.checked }))}
+                className="mt-0.5 w-4 h-4 accent-[#111111] cursor-pointer"
+              />
+              <span className="text-xs font-mono text-[#111111]">
+                <span className="font-bold uppercase">Evento personal</span>
+                <br />
+                {form.personal
+                  ? 'Sólo lo vas a ver vos. Destildá esto para que sea institucional (visible para todos).'
+                  : 'Institucional: lo va a ver todo el mundo en la agenda.'}
+              </span>
+            </label>
+          ) : (
+            <div className="flex items-start gap-2 p-2.5 bg-[#f4f0e6] border-2 border-[#111111]">
+              <Lock className="w-3.5 h-3.5 text-[#111111] mt-0.5 flex-shrink-0" aria-hidden="true" />
+              <span className="text-xs font-mono text-[#111111]">
+                Evento personal: sólo lo vas a ver vos, nadie más lo va a ver en su agenda ni por mail.
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center justify-end gap-2 pt-3 border-t-2 border-[#111111]">
             <button

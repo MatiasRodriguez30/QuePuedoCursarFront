@@ -96,7 +96,40 @@ function getInicioSemana(d) {
   return inicio
 }
 
-export default function AgendaTab({ ctx, showToast, showConfirm, esAdmin, cargarEventos }) {
+// Look visual por tipo de evento: oficial (importado del calendario UTN),
+// personal (sólo lo ve quien lo creó) o institucional (compartido, lo crea
+// un admin). Antes cualquier evento no-importado se mostraba y rotulaba
+// "personal" aunque en realidad era visible para todos: esto separa los tres
+// casos de verdad.
+function estiloEvento(ev) {
+  if (ev.origen === 'IMPORTADO') {
+    return {
+      etiqueta: 'Oficial',
+      tarjetaChica: 'bg-[#fef3c7] border-l-4 border-l-[#b45309]',
+      tarjetaGrande: 'bg-[#fffbeb]',
+      badge: 'bg-[#fef3c7] text-[#92400e] border-[#b45309]',
+      badgeTexto: 'Calendario oficial',
+    }
+  }
+  if (ev.personal) {
+    return {
+      etiqueta: 'Personal',
+      tarjetaChica: 'bg-[#f4f4f5] border-l-4 border-l-[#71717a]',
+      tarjetaGrande: 'bg-[#f4f4f5]',
+      badge: 'bg-[#e4e4e7] text-[#3f3f46] border-[#71717a]',
+      badgeTexto: 'Personal · sólo vos lo ves',
+    }
+  }
+  return {
+    etiqueta: null,
+    tarjetaChica: 'bg-white border-l-4 border-l-[#ccff00]',
+    tarjetaGrande: 'bg-[#fbf9f4]',
+    badge: 'bg-[#ccff00] text-[#111111] border-[#111111]',
+    badgeTexto: 'Institucional',
+  }
+}
+
+export default function AgendaTab({ ctx, showToast, showConfirm, esAdmin, usuarioId, cargarEventos }) {
   const hoy = useMemo(() => getHoyArgentina(), [])
   const hoyISO = useMemo(() => toISODate(hoy), [hoy])
 
@@ -162,6 +195,12 @@ export default function AgendaTab({ ctx, showToast, showConfirm, esAdmin, cargar
     .slice()
     .sort((a, b) => (a.hora_inicio || '').localeCompare(b.hora_inicio || ''))
 
+  // Admin gestiona cualquier evento; un usuario normal sólo el suyo propio
+  // (y sólo si es personal: los institucionales los administra el admin).
+  function puedeGestionar(ev) {
+    return esAdmin || (ev.personal && ev.creado_por_id === usuarioId)
+  }
+
   function cambiarSemana(delta) {
     setFechaReferencia(f => {
       const n = new Date(f)
@@ -212,17 +251,16 @@ export default function AgendaTab({ ctx, showToast, showConfirm, esAdmin, cargar
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-          {/* Botón "+ Nuevo Evento" condicionado a rol Admin */}
-          {esAdmin && (
-            <button
-              type="button"
-              onClick={() => setEditingEvento(null)}
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#ccff00] hover:bg-[#b8e600] text-[#111111] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] text-xs font-mono font-bold uppercase cursor-pointer min-h-[44px] whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4" aria-hidden="true" />
-              <span>Nuevo Evento</span>
-            </button>
-          )}
+          {/* Cualquier usuario logueado puede agendar algo propio; sólo el
+              admin puede además marcarlo institucional (ver EventoModal). */}
+          <button
+            type="button"
+            onClick={() => setEditingEvento(null)}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#ccff00] hover:bg-[#b8e600] text-[#111111] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] text-xs font-mono font-bold uppercase cursor-pointer min-h-[44px] whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4" aria-hidden="true" />
+            <span>Nuevo Evento</span>
+          </button>
         </div>
       </div>
 
@@ -520,19 +558,19 @@ export default function AgendaTab({ ctx, showToast, showConfirm, esAdmin, cargar
                       </div>
                     ) : (
                       eventosDia.map(ev => {
-                        const esImportado = ev.origen === 'IMPORTADO'
+                        const estilo = estiloEvento(ev)
                         return (
                           <div
                             key={ev.id}
-                            className={`p-1.5 border border-[#111111] text-left text-xs font-mono shadow-[1px_1px_0px_#111111] ${
-                              esImportado
-                                ? 'bg-[#fef3c7] border-l-4 border-l-[#b45309]'
-                                : 'bg-white border-l-4 border-l-[#ccff00]'
-                            }`}
+                            className={`p-1.5 border border-[#111111] text-left text-xs font-mono shadow-[1px_1px_0px_#111111] ${estilo.tarjetaChica}`}
                           >
                             <div className="flex items-center justify-between text-[9px] text-[#52525b] font-bold">
                               <span>{ev.hora_inicio ? ev.hora_inicio.slice(0, 5) : 'Todo el día'}</span>
-                              {esImportado && <span className="text-[#92400e]">Oficial</span>}
+                              {estilo.etiqueta && (
+                                <span className={ev.origen === 'IMPORTADO' ? 'text-[#92400e]' : 'text-[#71717a]'}>
+                                  {estilo.etiqueta}
+                                </span>
+                              )}
                             </div>
                             <div className="font-bold text-[#111111] text-[11px] leading-tight line-clamp-2 mt-0.5">
                               {ev.titulo}
@@ -593,13 +631,11 @@ export default function AgendaTab({ ctx, showToast, showConfirm, esAdmin, cargar
             ) : (
               <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
                 {eventosDelDia.map(ev => {
-                  const esImportado = ev.origen === 'IMPORTADO'
+                  const estilo = estiloEvento(ev)
                   return (
                     <div
                       key={ev.id}
-                      className={`p-3 border-2 border-[#111111] shadow-fanzine-sm space-y-2 ${
-                        esImportado ? 'bg-[#fffbeb]' : 'bg-[#fbf9f4]'
-                      }`}
+                      className={`p-3 border-2 border-[#111111] shadow-fanzine-sm space-y-2 ${estilo.tarjetaGrande}`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -622,8 +658,8 @@ export default function AgendaTab({ ctx, showToast, showConfirm, esAdmin, cargar
                           </div>
                         </div>
 
-                        {/* Botones de acción sólo para Admin */}
-                        {esAdmin && (
+                        {/* Botones de acción: admin siempre, dueño sólo en lo suyo personal */}
+                        {puedeGestionar(ev) && (
                           <div className="flex items-center gap-1 flex-shrink-0">
                             <button
                               type="button"
@@ -650,17 +686,11 @@ export default function AgendaTab({ ctx, showToast, showConfirm, esAdmin, cargar
                       {/* Expandir / Colapsar sin recortar descripciones largas (commit b498987) */}
                       <DescripcionEvento texto={ev.descripcion} />
 
-                      {/* Badge de distinción evento propio vs importado */}
+                      {/* Badge de distinción: oficial (UTN) / institucional (admin, para todos) / personal (sólo el dueño) */}
                       <div className="pt-1.5 border-t border-[#111111] flex items-center justify-between">
-                        {esImportado ? (
-                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 bg-[#fef3c7] text-[#92400e] border border-[#b45309]">
-                            Calendario oficial
-                          </span>
-                        ) : (
-                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 bg-[#ccff00] text-[#111111] border border-[#111111]">
-                            Evento personal
-                          </span>
-                        )}
+                        <span className={`font-mono text-[9px] font-bold px-1.5 py-0.2 border ${estilo.badge}`}>
+                          {estilo.badgeTexto}
+                        </span>
                       </div>
                     </div>
                   )
@@ -722,6 +752,7 @@ export default function AgendaTab({ ctx, showToast, showConfirm, esAdmin, cargar
           fechaPorDefecto={diaSeleccionado}
           onClose={() => setEditingEvento(undefined)}
           showToast={showToast}
+          esAdmin={esAdmin}
         />
       )}
     </div>
