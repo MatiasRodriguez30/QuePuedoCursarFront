@@ -329,7 +329,7 @@ export default function CarreraSurface({
           {/* Modal sólido accesible para editar el estado de una materia desde el mapa */}
           {detalleMapaAbierto && materiaActiva && (
             <div
-              className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-3 sm:p-4"
+              className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-3 sm:p-4"
               onClick={e => {
                 if (e.target === e.currentTarget) setDetalleMapaAbierto(false)
               }}

@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
+  ArrowLeft,
   Check,
   Expand,
   Lock,
@@ -72,7 +73,7 @@ export default function MapaCorrelativas({
   detalleAbierto = false,
 }) {
   const [incluirElectivas, setIncluirElectivas] = useState(false)
-  const [zoom, setZoom] = useState(0.85)
+  const [zoom, setZoom] = useState(1)
   const [fullscreen, setFullscreen] = useState(false)
   const [hoveredId, setHoveredId] = useState(null)
   const [isPanning, setIsPanning] = useState(false)
@@ -83,12 +84,19 @@ export default function MapaCorrelativas({
 
   const scrollContainerRef = useRef(null)
   const panStateRef = useRef(null)
+  const panCleanupRef = useRef(null)
   const didDragRef = useRef(false)
   const zoomRef = useRef(zoom)
+  const fullscreenRef = useRef(fullscreen)
+  const wasNativeFullscreenRef = useRef(false)
 
   useEffect(() => {
     zoomRef.current = zoom
   }, [zoom])
+
+  useEffect(() => {
+    fullscreenRef.current = fullscreen
+  }, [fullscreen])
 
   const mapaData = useMemo(
     () => buildMapaData(ctx, { incluirElectivas, filtroActivo, query }),
@@ -138,13 +146,65 @@ export default function MapaCorrelativas({
     return { hasIn, hasOut }
   }, [ctx, mapaData.visibleIdSet])
 
+  const enterFullscreen = useCallback(() => {
+    setFullscreen(true)
+    const el = document.documentElement
+    if (el?.requestFullscreen) {
+      el.requestFullscreen()
+        .then(() => {
+          wasNativeFullscreenRef.current = true
+        })
+        .catch(() => {
+          wasNativeFullscreenRef.current = false
+        })
+    }
+  }, [])
+
+  const exitFullscreen = useCallback(() => {
+    setFullscreen(false)
+    wasNativeFullscreenRef.current = false
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {})
+    }
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    if (fullscreenRef.current) exitFullscreen()
+    else enterFullscreen()
+  }, [enterFullscreen, exitFullscreen])
+
+  // Sincronizar si el usuario sale de Fullscreen API con Esc o botón del navegador
+  useEffect(() => {
+    function handleFullscreenChange() {
+      if (wasNativeFullscreenRef.current && !document.fullscreenElement) {
+        wasNativeFullscreenRef.current = false
+        setFullscreen(false)
+      }
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  // Limpiar drag listeners y Fullscreen API al desmontar
+  useEffect(() => {
+    return () => {
+      panCleanupRef.current?.()
+      panCleanupRef.current = null
+      if (wasNativeFullscreenRef.current && document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {})
+      }
+    }
+  }, [])
+
   const scrollToNode = useCallback((id) => {
     const container = scrollContainerRef.current
     const node = layout.nodesById.get(id)
     if (!container || !node) return
     const z = zoomRef.current
-    const targetLeft = Math.max(0, node.cx * z - container.clientWidth / 2)
-    const targetTop = Math.max(0, node.cy * z - container.clientHeight / 2)
+    const padLeft = fullscreenRef.current ? 16 : 0
+    const padTop = fullscreenRef.current ? 8 : 0
+    const targetLeft = Math.max(0, padLeft + node.cx * z - container.clientWidth / 2)
+    const targetTop = Math.max(0, padTop + node.cy * z - container.clientHeight / 2)
     const reduceMotion = typeof window !== 'undefined' &&
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     container.scrollTo({
@@ -162,10 +222,12 @@ export default function MapaCorrelativas({
     if (!container || !node) return
 
     const z = zoomRef.current
-    const left = node.x * z
-    const right = (node.x + node.w) * z
-    const top = node.y * z
-    const bottom = (node.y + node.h) * z
+    const padLeft = fullscreenRef.current ? 16 : 0
+    const padTop = fullscreenRef.current ? 8 : 0
+    const left = padLeft + node.x * z
+    const right = padLeft + (node.x + node.w) * z
+    const top = padTop + node.y * z
+    const bottom = padTop + (node.y + node.h) * z
 
     const inViewX = left >= container.scrollLeft && right <= container.scrollLeft + container.clientWidth
     const inViewY = top >= container.scrollTop && bottom <= container.scrollTop + container.clientHeight
@@ -180,7 +242,7 @@ export default function MapaCorrelativas({
       if (e.key !== 'Escape' || detalleAbierto) return
       if (fullscreen) {
         e.preventDefault()
-        setFullscreen(false)
+        exitFullscreen()
       } else if (effectiveFocusId) {
         e.preventDefault()
         onFocusMateria?.(null)
@@ -188,12 +250,53 @@ export default function MapaCorrelativas({
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [fullscreen, effectiveFocusId, detalleAbierto, onFocusMateria])
+  }, [fullscreen, effectiveFocusId, detalleAbierto, exitFullscreen, onFocusMateria])
+
+  const hasCanvas = Boolean(ctx?.materias?.length) && mapaData.stats.visibles > 0
+
+  // Rueda del ratón: Ctrl+rueda zoom anclado al cursor, Shift+rueda pan horizontal
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container || !hasCanvas) return
+
+    function handleWheel(e) {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        const oldZoom = zoomRef.current
+        const delta = e.deltaY < 0 ? 0.1 : -0.1
+        const nextZoom = clampZoom(oldZoom + delta)
+        if (nextZoom === oldZoom) return
+
+        const rect = container.getBoundingClientRect()
+        const offsetX = e.clientX - rect.left
+        const offsetY = e.clientY - rect.top
+        const padLeft = fullscreenRef.current ? 16 : 0
+        const padTop = fullscreenRef.current ? 8 : 0
+        const canvasX = (container.scrollLeft + offsetX - padLeft) / oldZoom
+        const canvasY = (container.scrollTop + offsetY - padTop) / oldZoom
+
+        zoomRef.current = nextZoom
+        setZoom(nextZoom)
+
+        window.requestAnimationFrame(() => {
+          container.scrollLeft = Math.max(0, canvasX * nextZoom + padLeft - offsetX)
+          container.scrollTop = Math.max(0, canvasY * nextZoom + padTop - offsetY)
+        })
+      } else if (e.shiftKey && Math.abs(e.deltaY) > 0 && Math.abs(e.deltaX) === 0) {
+        e.preventDefault()
+        container.scrollLeft += e.deltaY
+      }
+    }
+
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    return () => container.removeEventListener('wheel', handleWheel)
+  }, [hasCanvas])
 
   function handleFitZoom() {
     const container = scrollContainerRef.current
     if (!container || layout.width <= 0) return
-    const fit = clampZoom((container.clientWidth - 16) / layout.width)
+    const padX = fullscreen ? 32 : 16
+    const fit = clampZoom((container.clientWidth - padX) / layout.width)
     setZoom(Math.min(1, fit))
     container.scrollTo({ left: 0, top: 0, behavior: 'auto' })
   }
@@ -204,50 +307,82 @@ export default function MapaCorrelativas({
   }
 
   function handlePointerDown(e) {
-    if (e.pointerType !== 'mouse' || e.button !== 0) return
-    if (e.target.closest('button')) return
+    if (e.pointerType !== 'mouse') return
+    if (e.button !== 0 && e.button !== 1) return
+
     const container = scrollContainerRef.current
     if (!container) return
 
+    if (e.button === 1) {
+      e.preventDefault()
+    }
+
+    panCleanupRef.current?.()
     didDragRef.current = false
     panStateRef.current = {
       pointerId: e.pointerId,
+      button: e.button,
       startX: e.clientX,
       startY: e.clientY,
       scrollLeft: container.scrollLeft,
       scrollTop: container.scrollTop,
+      dragging: false,
     }
-    setIsPanning(true)
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId)
-    } catch {
-      /* noop */
+
+    function handleWindowPointerMove(ev) {
+      const pan = panStateRef.current
+      if (!pan || ev.pointerId !== pan.pointerId) return
+
+      const dx = ev.clientX - pan.startX
+      const dy = ev.clientY - pan.startY
+
+      if (!pan.dragging) {
+        const threshold = pan.button === 1 ? 1 : 6
+        const moved = pan.button === 1
+          ? (Math.abs(dx) > threshold || Math.abs(dy) > threshold)
+          : (Math.hypot(dx, dy) > threshold)
+        if (!moved) return
+        pan.dragging = true
+        didDragRef.current = true
+        setIsPanning(true)
+      }
+
+      container.scrollLeft = pan.scrollLeft - dx
+      container.scrollTop = pan.scrollTop - dy
+    }
+
+    function finishPan(ev) {
+      const pan = panStateRef.current
+      if (!pan || ev.pointerId !== pan.pointerId) return
+      const wasDragging = pan.dragging
+
+      panCleanupRef.current?.()
+      panCleanupRef.current = null
+      panStateRef.current = null
+      setIsPanning(false)
+
+      if (wasDragging) {
+        window.setTimeout(() => {
+          didDragRef.current = false
+        }, 0)
+      }
+    }
+
+    window.addEventListener('pointermove', handleWindowPointerMove)
+    window.addEventListener('pointerup', finishPan)
+    window.addEventListener('pointercancel', finishPan)
+    panCleanupRef.current = () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove)
+      window.removeEventListener('pointerup', finishPan)
+      window.removeEventListener('pointercancel', finishPan)
     }
   }
 
-  function handlePointerMove(e) {
-    const pan = panStateRef.current
-    const container = scrollContainerRef.current
-    if (!pan || !container) return
-
-    const dx = e.clientX - pan.startX
-    const dy = e.clientY - pan.startY
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-      didDragRef.current = true
-    }
-    container.scrollLeft = pan.scrollLeft - dx
-    container.scrollTop = pan.scrollTop - dy
-  }
-
-  function handlePointerUp(e) {
-    if (!panStateRef.current) return
-    panStateRef.current = null
-    setIsPanning(false)
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId)
-    } catch {
-      /* noop */
-    }
+  function handleContainerClickCapture(e) {
+    if (!didDragRef.current) return
+    e.preventDefault()
+    e.stopPropagation()
+    didDragRef.current = false
   }
 
   function handleCardClick(materiaId) {
@@ -304,213 +439,305 @@ export default function MapaCorrelativas({
   }
 
   const { stats } = mapaData
-  const outerClass = fullscreen
-    ? 'fixed inset-0 z-50 bg-[#f4f0e6] p-3 sm:p-4 flex flex-col gap-3 overflow-hidden'
-    : 'space-y-3'
 
   return (
-    <div className={outerClass} data-testid="mapa-correlativas-root">
-      {/* ── BARRA SUPERIOR DEL MAPA: STATS REALES + ELECTIVAS + PANTALLA COMPLETA ── */}
-      <div className="bg-white border-3 border-[#111111] shadow-fanzine-sm p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-2 shrink-0">
-        <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px] font-bold">
-          <span className="px-2 py-1 bg-[#111111] text-[#ccff00] border border-[#111111] uppercase">
-            {stats.visibles} de {stats.total} materias
-          </span>
-          <span className="px-2 py-1 bg-[#ccff00] text-[#111111] border border-[#111111]">
-            {stats.aprobadas} aprobadas
-          </span>
-          <span className="px-2 py-1 bg-[#fef08a] text-[#111111] border border-[#111111]">
-            {stats.regulares} regulares
-          </span>
-          {stats.cursando > 0 && (
-            <span className="px-2 py-1 bg-[#0047ff] text-white border border-[#111111]">
-              {stats.cursando} cursando
-            </span>
-          )}
-          <span className="px-2 py-1 bg-[#ff1464] text-[#111111] border border-[#111111]">
-            {stats.cursables} cursables
-          </span>
-        </div>
+    <div
+      className={
+        fullscreen
+          ? 'fixed inset-0 z-[70] w-screen h-screen bg-[#f4f0e6] bg-riso-halftone flex flex-col overflow-hidden'
+          : 'space-y-3'
+      }
+      data-testid="mapa-correlativas-root"
+    >
+      {/* ── MODO NORMAL: BARRA SUPERIOR + BANNER DE FOCO + RESUMEN MÓVIL ── */}
+      {!fullscreen && (
+        <>
+          <div className="bg-white border-3 border-[#111111] shadow-fanzine-sm p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px] font-bold">
+              <span className="px-2 py-1 bg-[#111111] text-[#ccff00] border border-[#111111] uppercase">
+                {stats.visibles} de {stats.total} materias
+              </span>
+              <span className="px-2 py-1 bg-[#ccff00] text-[#111111] border border-[#111111]">
+                {stats.aprobadas} aprobadas
+              </span>
+              <span className="px-2 py-1 bg-[#fef08a] text-[#111111] border border-[#111111]">
+                {stats.regulares} regulares
+              </span>
+              {stats.cursando > 0 && (
+                <span className="px-2 py-1 bg-[#0047ff] text-white border border-[#111111]">
+                  {stats.cursando} cursando
+                </span>
+              )}
+              <span className="px-2 py-1 bg-[#ff1464] text-[#111111] border border-[#111111]">
+                {stats.cursables} cursables
+              </span>
+            </div>
 
-        <div className="flex items-center gap-2">
-          {stats.totalElectivas > 0 && (
-            <button
-              type="button"
-              aria-pressed={incluirElectivas}
-              onClick={() => setIncluirElectivas(prev => !prev)}
-              className={`min-h-[44px] sm:min-h-[36px] px-2.5 py-1.5 border-2 border-[#111111] font-mono text-[11px] font-bold uppercase cursor-pointer transition-colors ${
-                incluirElectivas
-                  ? 'bg-[#111111] text-[#ccff00] shadow-[2px_2px_0px_#ff1464]'
-                  : 'bg-[#f4f0e6] text-[#111111] hover:bg-white shadow-[2px_2px_0px_#111111]'
-              }`}
-            >
-              Electivas ({stats.totalElectivas})
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setFullscreen(prev => !prev)}
-            className="min-h-[44px] sm:min-h-[36px] inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white hover:bg-[#ccff00] text-[#111111] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] font-mono text-[11px] font-bold uppercase cursor-pointer"
-          >
-            {fullscreen ? (
-              <>
-                <Minimize2 className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Salir</span>
-              </>
-            ) : (
-              <>
-                <Maximize2 className="w-3.5 h-3.5" aria-hidden="true" />
-                <span className="hidden sm:inline">Pantalla completa</span>
-                <span className="sm:hidden">Ampliar</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* ── BANNER DE FOCO / PREDICCIÓN DE LA MATERIA SELECCIONADA ── */}
-      {relacionesFoco && focusedMateria ? (
-        <div
-          aria-live="polite"
-          className="bg-white border-3 border-[#111111] shadow-fanzine-md p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3 shrink-0"
-        >
-          <div className="space-y-2 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-2 py-0.5 bg-[#111111] text-[#ccff00] font-mono text-xs font-bold border border-[#111111]">
-                {focusedMateria.codigo}
-              </span>
-              <h3 className="font-sans text-sm sm:text-base font-bold text-[#111111] leading-tight">
-                {focusedMateria.nombre}
-              </h3>
-              <span className="font-mono text-[11px] font-bold text-[#52525b]">
-                · {focusedMateria.anio ? `${focusedMateria.anio}º Año` : 'Electiva'}
-              </span>
-              <EstadoMiniBadge materia={focusedMateria} />
-            </div>
+              {stats.totalElectivas > 0 && (
+                <button
+                  type="button"
+                  aria-pressed={incluirElectivas}
+                  onClick={() => setIncluirElectivas(prev => !prev)}
+                  className={`min-h-[44px] sm:min-h-[36px] px-2.5 py-1.5 border-2 border-[#111111] font-mono text-[11px] font-bold uppercase cursor-pointer transition-colors ${
+                    incluirElectivas
+                      ? 'bg-[#111111] text-[#ccff00] shadow-[2px_2px_0px_#ff1464]'
+                      : 'bg-[#f4f0e6] text-[#111111] hover:bg-white shadow-[2px_2px_0px_#111111]'
+                  }`}
+                >
+                  Electivas ({stats.totalElectivas})
+                </button>
+              )}
 
-            <div className="flex flex-wrap items-center gap-2 font-mono text-xs font-bold">
-              <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-[#ccff00] text-[#111111] border-2 border-[#111111]">
-                <svg width="18" height="8" viewBox="0 0 18 8" aria-hidden="true" className="shrink-0">
-                  <line x1="0" y1="4" x2="18" y2="4" stroke="#166534" strokeWidth="3" />
-                </svg>
-                <span>Con Aprobada habilita: {relacionesFoco.conAprobadaCount}</span>
-              </span>
-
-              <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-[#0047ff] text-white border-2 border-[#111111]">
-                <svg width="18" height="8" viewBox="0 0 18 8" aria-hidden="true" className="shrink-0">
-                  <line x1="0" y1="4" x2="18" y2="4" stroke="#ffffff" strokeWidth="3" strokeDasharray="4 3" />
-                </svg>
-                <span>Con Regular habilita: {relacionesFoco.conRegularCount}</span>
-              </span>
-
-              <span className="text-[#52525b]">
-                (Requiere {relacionesFoco.totalPrevias} {relacionesFoco.totalPrevias === 1 ? 'previa' : 'previas'})
-              </span>
+              <button
+                type="button"
+                onClick={enterFullscreen}
+                className="min-h-[44px] sm:min-h-[36px] inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#ccff00] hover:bg-[#b8e600] text-[#111111] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] font-mono text-[11px] font-bold uppercase cursor-pointer"
+              >
+                <Maximize2 className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>Pantalla completa</span>
+              </button>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => onOpenDetalle?.(focusedMateria.id)}
-              className="min-h-[44px] sm:min-h-[38px] inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#f4f0e6] hover:bg-[#ccff00] text-[#111111] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] font-mono text-xs font-bold uppercase cursor-pointer"
+          {relacionesFoco && focusedMateria ? (
+            <div
+              aria-live="polite"
+              className="bg-white border-3 border-[#111111] shadow-fanzine-md p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Editar estado</span>
-            </button>
+              <div className="space-y-2 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2 py-0.5 bg-[#111111] text-[#ccff00] font-mono text-xs font-bold border border-[#111111]">
+                    {focusedMateria.codigo}
+                  </span>
+                  <h3 className="font-sans text-sm sm:text-base font-bold text-[#111111] leading-tight">
+                    {focusedMateria.nombre}
+                  </h3>
+                  <span className="font-mono text-[11px] font-bold text-[#52525b]">
+                    · {focusedMateria.anio ? `${focusedMateria.anio}º Año` : 'Electiva'}
+                  </span>
+                  <EstadoMiniBadge materia={focusedMateria} />
+                </div>
 
-            <button
-              type="button"
-              onClick={() => onFocusMateria?.(null)}
-              className="min-h-[44px] sm:min-h-[38px] inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#111111] hover:bg-[#ff1464] text-white hover:text-[#111111] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] font-mono text-xs font-bold uppercase cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Ver todo</span>
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-[#fffdf5] border-2 border-[#111111] px-3 py-2 font-mono text-xs text-[#111111] flex items-center gap-2 shrink-0">
-          <Sparkles className="w-4 h-4 text-[#0047ff] shrink-0" aria-hidden="true" />
-          <span>
-            Tocá cualquier materia del mapa para ver sus previas y qué materias habilita (con Regular o Aprobada).
-          </span>
-        </div>
+                <div className="flex flex-wrap items-center gap-2 font-mono text-xs font-bold">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-[#ccff00] text-[#111111] border-2 border-[#111111]">
+                    <svg width="18" height="8" viewBox="0 0 18 8" aria-hidden="true" className="shrink-0">
+                      <line x1="0" y1="4" x2="18" y2="4" stroke="#166534" strokeWidth="3" />
+                    </svg>
+                    <span>Con Aprobada habilita: {relacionesFoco.conAprobadaCount}</span>
+                  </span>
+
+                  <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-[#0047ff] text-white border-2 border-[#111111]">
+                    <svg width="18" height="8" viewBox="0 0 18 8" aria-hidden="true" className="shrink-0">
+                      <line x1="0" y1="4" x2="18" y2="4" stroke="#ffffff" strokeWidth="3" strokeDasharray="4 3" />
+                    </svg>
+                    <span>Con Regular habilita: {relacionesFoco.conRegularCount}</span>
+                  </span>
+
+                  <span className="text-[#52525b]">
+                    (Requiere {relacionesFoco.totalPrevias} {relacionesFoco.totalPrevias === 1 ? 'previa' : 'previas'})
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onOpenDetalle?.(focusedMateria.id)}
+                  className="min-h-[44px] sm:min-h-[38px] inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#f4f0e6] hover:bg-[#ccff00] text-[#111111] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] font-mono text-xs font-bold uppercase cursor-pointer"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Editar estado</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onFocusMateria?.(null)}
+                  className="min-h-[44px] sm:min-h-[38px] inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#111111] hover:bg-[#ff1464] text-white hover:text-[#111111] border-2 border-[#111111] shadow-[2px_2px_0px_#111111] font-mono text-xs font-bold uppercase cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Ver todo</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-[#fffdf5] border-2 border-[#111111] px-3 py-2 font-mono text-xs text-[#111111] flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-[#0047ff] shrink-0" aria-hidden="true" />
+              <span>
+                Arrastrá la pizarra con click o con la rueda del ratón (Ctrl + rueda para zoom) · Tocá una materia para ver sus previas y qué habilita.
+              </span>
+            </div>
+          )}
+
+          {relacionesFoco && focusedMateria && (
+            <div className="md:hidden bg-white border-2 border-[#111111] shadow-fanzine-sm p-3 space-y-2.5">
+              <div>
+                <div className="font-mono text-[10px] font-bold uppercase text-[#52525b] mb-1">
+                  Previas requeridas ({mobilePrevias.length})
+                </div>
+                {mobilePrevias.length === 0 ? (
+                  <p className="font-mono text-[11px] text-[#52525b]">No requiere correlativas previas.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {mobilePrevias.map(({ materia, tipo, cumplida }) => (
+                      <button
+                        key={materia.id}
+                        type="button"
+                        onClick={() => {
+                          onFocusMateria?.(materia.id)
+                          scrollToNode(materia.id)
+                        }}
+                        className={`min-h-[44px] px-2.5 py-1.5 border-2 border-[#111111] text-left font-mono text-[11px] font-bold cursor-pointer ${
+                          tipo === 'APROBADA' ? 'bg-[#f0fdf4] text-[#111111]' : 'bg-[#eff6ff] text-[#111111]'
+                        }`}
+                      >
+                        <span className="block leading-tight">
+                          {cumplida ? '✓' : '✕'} [{materia.codigo}] {materia.nombre}
+                        </span>
+                        <span className="text-[10px] text-[#52525b]">
+                          {tipo === 'APROBADA' ? 'Debés tenerla Aprobada' : 'Debés tenerla Regular'}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-[#111111]">
+                <div className="font-mono text-[10px] font-bold uppercase text-[#52525b] mb-1">
+                  Materias que habilita ({mobileHabilita.length})
+                </div>
+                {mobileHabilita.length === 0 ? (
+                  <p className="font-mono text-[11px] text-[#52525b]">Es una materia final de ciclo.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {mobileHabilita.map(({ materia, tipo }) => (
+                      <button
+                        key={materia.id}
+                        type="button"
+                        onClick={() => {
+                          onFocusMateria?.(materia.id)
+                          scrollToNode(materia.id)
+                        }}
+                        className={`min-h-[44px] px-2.5 py-1.5 border-2 border-[#111111] text-left font-mono text-[11px] font-bold cursor-pointer ${
+                          tipo === 'APROBADA' ? 'bg-[#ccff00] text-[#111111]' : 'bg-[#0047ff] text-white'
+                        }`}
+                      >
+                        <span className="block leading-tight">
+                          → [{materia.codigo}] {materia.nombre}
+                        </span>
+                        <span className={`text-[10px] ${tipo === 'APROBADA' ? 'text-[#111111]' : 'text-white'}`}>
+                          {tipo === 'APROBADA' ? 'Desbloquea con Aprobada' : 'Desbloquea con Regular'}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
-      {/* ── RESUMEN TÁCTIL MÓVIL (< 768px) DE PREVIAS Y HABILITACIONES ── */}
-      {relacionesFoco && focusedMateria && (
-        <div className="md:hidden bg-white border-2 border-[#111111] shadow-fanzine-sm p-3 space-y-2.5 shrink-0">
-          <div>
-            <div className="font-mono text-[10px] font-bold uppercase text-[#52525b] mb-1">
-              Previas requeridas ({mobilePrevias.length})
-            </div>
-            {mobilePrevias.length === 0 ? (
-              <p className="font-mono text-[11px] text-[#52525b]">No requiere correlativas previas.</p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {mobilePrevias.map(({ materia, tipo, cumplida }) => (
-                  <button
-                    key={materia.id}
-                    type="button"
-                    onClick={() => {
-                      onFocusMateria?.(materia.id)
-                      scrollToNode(materia.id)
-                    }}
-                    className={`min-h-[44px] px-2.5 py-1.5 border-2 border-[#111111] text-left font-mono text-[11px] font-bold cursor-pointer ${
-                      tipo === 'APROBADA' ? 'bg-[#f0fdf4] text-[#111111]' : 'bg-[#eff6ff] text-[#111111]'
-                    }`}
-                  >
-                    <span className="block leading-tight">
-                      {cumplida ? '✓' : '✕'} [{materia.codigo}] {materia.nombre}
-                    </span>
-                    <span className="text-[10px] text-[#52525b]">
-                      {tipo === 'APROBADA' ? 'Debés tenerla Aprobada' : 'Debés tenerla Regular'}
-                    </span>
-                  </button>
-                ))}
-              </div>
+      {/* ── MODO PANTALLA COMPLETA: BARRA SUPERIOR SÓLIDA SIN TAPAR EL LIENZO ── */}
+      {fullscreen && (
+        <div className="shrink-0 bg-white border-b-3 border-[#111111] px-2.5 sm:px-3 py-2 flex flex-col xl:flex-row xl:items-center justify-between gap-2 z-30">
+          {/* Izquierda: Salir + stats + electivas */}
+          <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px] font-bold">
+            <button
+              type="button"
+              onClick={exitFullscreen}
+              className="min-h-[44px] sm:min-h-[34px] inline-flex items-center gap-1 px-2.5 py-1 bg-[#111111] hover:bg-[#ff1464] text-[#ccff00] hover:text-[#111111] border border-[#111111] uppercase cursor-pointer transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Salir</span>
+            </button>
+
+            <span className="px-2 py-1 bg-[#111111] text-[#ccff00] border border-[#111111]">
+              {stats.visibles}/{stats.total}
+            </span>
+            <span className="px-2 py-1 bg-[#ccff00] text-[#111111] border border-[#111111]">
+              {stats.aprobadas} aprobadas
+            </span>
+            <span className="hidden sm:inline-block px-2 py-1 bg-[#fef08a] text-[#111111] border border-[#111111]">
+              {stats.regulares} regulares
+            </span>
+            <span className="hidden sm:inline-block px-2 py-1 bg-[#ff1464] text-[#111111] border border-[#111111]">
+              {stats.cursables} cursables
+            </span>
+
+            {stats.totalElectivas > 0 && (
+              <button
+                type="button"
+                aria-pressed={incluirElectivas}
+                onClick={() => setIncluirElectivas(prev => !prev)}
+                className={`min-h-[44px] sm:min-h-[34px] px-2 py-1 border border-[#111111] uppercase cursor-pointer ${
+                  incluirElectivas
+                    ? 'bg-[#111111] text-[#ccff00]'
+                    : 'bg-[#f4f0e6] text-[#111111] hover:bg-white'
+                }`}
+              >
+                Electivas ({stats.totalElectivas})
+              </button>
             )}
           </div>
 
-          <div className="pt-2 border-t border-[#111111]">
-            <div className="font-mono text-[10px] font-bold uppercase text-[#52525b] mb-1">
-              Materias que habilita ({mobileHabilita.length})
-            </div>
-            {mobileHabilita.length === 0 ? (
-              <p className="font-mono text-[11px] text-[#52525b]">Es una materia final de ciclo.</p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {mobileHabilita.map(({ materia, tipo }) => (
-                  <button
-                    key={materia.id}
-                    type="button"
-                    onClick={() => {
-                      onFocusMateria?.(materia.id)
-                      scrollToNode(materia.id)
-                    }}
-                    className={`min-h-[44px] px-2.5 py-1.5 border-2 border-[#111111] text-left font-mono text-[11px] font-bold cursor-pointer ${
-                      tipo === 'APROBADA' ? 'bg-[#ccff00] text-[#111111]' : 'bg-[#0047ff] text-white'
-                    }`}
-                  >
-                    <span className="block leading-tight">
-                      → [{materia.codigo}] {materia.nombre}
-                    </span>
-                    <span className={`text-[10px] ${tipo === 'APROBADA' ? 'text-[#111111]' : 'text-white'}`}>
-                      {tipo === 'APROBADA' ? 'Desbloquea con Aprobada' : 'Desbloquea con Regular'}
-                    </span>
-                  </button>
-                ))}
+          {/* Derecha: Foco compacto cuando hay materia seleccionada */}
+          {relacionesFoco && focusedMateria && (
+            <div
+              aria-live="polite"
+              className="flex flex-wrap items-center justify-between xl:justify-end gap-1.5 sm:gap-2 pt-1.5 xl:pt-0 border-t-2 xl:border-t-0 border-[#111111]"
+            >
+              <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                <span className="px-1.5 py-0.5 bg-[#111111] text-[#ccff00] font-mono text-[11px] font-bold border border-[#111111]">
+                  {focusedMateria.codigo}
+                </span>
+                <span className="font-sans text-xs sm:text-sm font-bold text-[#111111] truncate max-w-[180px] sm:max-w-[260px]">
+                  {focusedMateria.nombre}
+                </span>
+                <EstadoMiniBadge materia={focusedMateria} />
+                <span className="px-1.5 py-0.5 bg-[#ccff00] text-[#111111] border border-[#111111] font-mono text-[11px] font-bold">
+                  Con Aprobada: {relacionesFoco.conAprobadaCount}
+                </span>
+                <span className="px-1.5 py-0.5 bg-[#0047ff] text-white border border-[#111111] font-mono text-[11px] font-bold">
+                  Con Regular: {relacionesFoco.conRegularCount}
+                </span>
+                <span className="font-mono text-[11px] font-bold text-[#52525b]">
+                  (Req. {relacionesFoco.totalPrevias})
+                </span>
               </div>
-            )}
-          </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onOpenDetalle?.(focusedMateria.id)}
+                  className="min-h-[44px] sm:min-h-[34px] inline-flex items-center gap-1 px-2.5 py-1 bg-[#f4f0e6] hover:bg-[#ccff00] text-[#111111] border-2 border-[#111111] font-mono text-[11px] font-bold uppercase cursor-pointer"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Editar estado</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onFocusMateria?.(null)}
+                  className="min-h-[44px] sm:min-h-[34px] inline-flex items-center gap-1 px-2.5 py-1 bg-[#111111] hover:bg-[#ff1464] text-white hover:text-[#111111] border-2 border-[#111111] font-mono text-[11px] font-bold uppercase cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Ver todo</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* ── ESTADO VACÍO POR FILTROS / BÚSQUEDA ── */}
       {stats.visibles === 0 ? (
-        <div className="bg-[#f4f0e6] border-3 border-[#111111] shadow-fanzine-md p-6 sm:p-8 text-center">
+        <div
+          className={`bg-[#f4f0e6] border-3 border-[#111111] shadow-fanzine-md p-6 sm:p-8 text-center ${
+            fullscreen ? 'mx-auto my-auto max-w-md' : ''
+          }`}
+        >
           <div className="w-16 h-16 mx-auto mb-3 bg-white border-2 border-[#111111] shadow-fanzine-sm flex items-center justify-center p-1.5">
             <TitoAvatar variant="lupa" className="w-12 h-12" />
           </div>
@@ -533,251 +760,310 @@ export default function MapaCorrelativas({
       ) : (
         /* ── LIENZO INTERACTIVO CON SCROLL, DRAG-TO-PAN, ZOOM Y CAPA SVG ── */
         <div
-          className={`relative border-3 border-[#111111] bg-[#f4f0e6] bg-riso-halftone shadow-fanzine-md overflow-hidden ${
-            fullscreen ? 'flex-1 min-h-0 flex flex-col' : ''
-          }`}
+          className={
+            fullscreen
+              ? 'relative flex-1 min-h-0'
+              : 'relative border-3 border-[#111111] bg-[#f4f0e6] bg-riso-halftone shadow-fanzine-md overflow-hidden'
+          }
         >
           <div
             ref={scrollContainerRef}
+            onMouseDown={e => {
+              if (e.button === 1) e.preventDefault()
+            }}
+            onAuxClick={e => {
+              if (e.button === 1) e.preventDefault()
+            }}
             onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
+            onClickCapture={handleContainerClickCapture}
             className={`overflow-auto select-none ${
-              fullscreen ? 'flex-1 min-h-0' : 'h-[68vh] min-h-[460px]'
+              fullscreen ? 'w-full h-full' : 'h-[68vh] min-h-[460px]'
             } ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
           >
-            <div
-              style={{
-                width: `${layout.width * zoom}px`,
-                height: `${layout.height * zoom}px`,
-              }}
-              className="relative"
-            >
+            <div style={fullscreen ? { padding: '8px 16px 68px 16px' } : undefined}>
               <div
                 style={{
-                  width: `${layout.width}px`,
-                  height: `${layout.height}px`,
-                  transform: `scale(${zoom})`,
-                  transformOrigin: '0 0',
+                  width: `${layout.width * zoom}px`,
+                  height: `${layout.height * zoom}px`,
                 }}
                 className="relative"
               >
-                {/* Encabezados de columnas por año */}
-                {layout.columnHeaders.map(col => (
-                  <div
-                    key={col.key}
-                    style={{ left: `${col.x}px`, top: '14px', width: `${col.w}px`, height: '36px' }}
-                    className="absolute bg-white border-2 border-[#111111] shadow-[2px_2px_0px_#111111] px-2.5 flex items-center justify-between z-10 pointer-events-none"
-                  >
-                    <span className="font-display text-xs font-bold uppercase text-[#111111]">
-                      {col.label}
-                    </span>
-                    <span className="font-mono text-[11px] font-bold bg-[#f4f0e6] text-[#111111] px-1.5 py-0.5 border border-[#111111]">
-                      {col.aprobadas}/{col.count}
-                    </span>
-                  </div>
-                ))}
-
-                {/* Capa de tarjetas HTML (z-10) */}
-                <div className="absolute inset-0 z-10">
-                  {Array.from(layout.nodesById.values()).map(node => {
-                    const materia = mapaData.nodesMetaById.get(node.id)
-                    if (!materia) return null
-
-                    const isFocused = effectiveFocusId === node.id
-                    let relationRole = null
-                    let relationInfo = null
-
-                    if (relacionesFoco) {
-                      if (relacionesFoco.previasMap.has(node.id)) {
-                        relationRole = 'previa'
-                        relationInfo = relacionesFoco.previasMap.get(node.id)
-                      } else if (relacionesFoco.habilitaMap.has(node.id)) {
-                        relationRole = 'habilita'
-                        relationInfo = relacionesFoco.habilitaMap.get(node.id)
-                      }
-                    }
-
-                    const isDimmedByFocus = Boolean(relacionesFoco) && !isFocused && !relationRole
-                    const isDimmedByFilter = !materia.matchesView && !isFocused && !relationRole
-                    const isDimmed = isDimmedByFocus || isDimmedByFilter
-
-                    return (
-                      <MapaMateriaCard
-                        key={node.id}
-                        materia={materia}
-                        node={node}
-                        isFocused={isFocused}
-                        relationRole={relationRole}
-                        relationInfo={relationInfo}
-                        isDimmed={isDimmed}
-                        showPorts={!relacionesFoco}
-                        hasInPort={portMaps.hasIn.has(node.id)}
-                        hasOutPort={portMaps.hasOut.has(node.id)}
-                        onClick={() => handleCardClick(node.id)}
-                        onMouseEnter={() => {
-                          if (!relacionesFoco) setHoveredId(node.id)
-                        }}
-                        onMouseLeave={() => {
-                          setHoveredId(prev => (prev === node.id ? null : prev))
-                        }}
-                      />
-                    )
-                  })}
-                </div>
-
-                {/* Capa SVG de flechas ortogonales (z-20 pointer-events-none) */}
-                <svg
-                  width={layout.width}
-                  height={layout.height}
-                  className="absolute inset-0 z-20 pointer-events-none"
-                  aria-hidden="true"
+                <div
+                  style={{
+                    width: `${layout.width}px`,
+                    height: `${layout.height}px`,
+                    transform: `scale(${zoom})`,
+                    transformOrigin: '0 0',
+                  }}
+                  className="relative"
                 >
-                  <defs>
-                    <marker
-                      id={arrowAprobadaId}
-                      viewBox="0 0 10 10"
-                      refX="8"
-                      refY="5"
-                      markerWidth="6"
-                      markerHeight="6"
-                      orient="auto"
+                  {/* Encabezados de columnas por año */}
+                  {layout.columnHeaders.map(col => (
+                    <div
+                      key={col.key}
+                      style={{ left: `${col.x}px`, top: '14px', width: `${col.w}px`, height: '38px' }}
+                      className="absolute bg-white border-2 border-[#111111] shadow-[2px_2px_0px_#111111] px-2.5 flex items-center justify-between z-10 pointer-events-none"
                     >
-                      <path d="M 0 1 L 10 5 L 0 9 z" fill="#166534" />
-                    </marker>
-                    <marker
-                      id={arrowRegularId}
-                      viewBox="0 0 10 10"
-                      refX="8"
-                      refY="5"
-                      markerWidth="6"
-                      markerHeight="6"
-                      orient="auto"
-                    >
-                      <path d="M 0 1 L 10 5 L 0 9 z" fill="#0047ff" />
-                    </marker>
-                  </defs>
+                      <span className="font-display text-xs font-bold uppercase text-[#111111]">
+                        {col.label}
+                      </span>
+                      <span className="font-mono text-[11px] font-bold bg-[#f4f0e6] text-[#111111] px-1.5 py-0.5 border border-[#111111]">
+                        {col.aprobadas}/{col.count}
+                      </span>
+                    </div>
+                  ))}
 
-                  {routedEdges.map(edge => {
-                    const isAprobada = edge.tipo === 'APROBADA'
-                    const stroke = isAprobada ? '#166534' : '#0047ff'
-                    const markerId = isAprobada ? arrowAprobadaId : arrowRegularId
-                    const isPreview = activeEdgesSource.isPreview
+                  {/* Capa de tarjetas HTML (z-10) */}
+                  <div className="absolute inset-0 z-10">
+                    {Array.from(layout.nodesById.values()).map(node => {
+                      const materia = mapaData.nodesMetaById.get(node.id)
+                      if (!materia) return null
 
-                    return (
-                      <g key={edge.id} opacity={isPreview ? 0.65 : 1}>
-                        <circle cx={edge.startX} cy={edge.startY} r="3.5" fill={stroke} />
-                        <path
-                          d={edge.d}
-                          fill="none"
-                          stroke={stroke}
-                          strokeWidth={isPreview ? 2 : 2.5}
-                          strokeLinejoin="round"
-                          strokeDasharray={isAprobada ? undefined : '6 4'}
-                          markerEnd={`url(#${markerId})`}
+                      const isFocused = effectiveFocusId === node.id
+                      let relationRole = null
+                      let relationInfo = null
+
+                      if (relacionesFoco) {
+                        if (relacionesFoco.previasMap.has(node.id)) {
+                          relationRole = 'previa'
+                          relationInfo = relacionesFoco.previasMap.get(node.id)
+                        } else if (relacionesFoco.habilitaMap.has(node.id)) {
+                          relationRole = 'habilita'
+                          relationInfo = relacionesFoco.habilitaMap.get(node.id)
+                        }
+                      }
+
+                      const isDimmedByFocus = Boolean(relacionesFoco) && !isFocused && !relationRole
+                      const isDimmedByFilter = !materia.matchesView && !isFocused && !relationRole
+                      const isDimmed = isDimmedByFocus || isDimmedByFilter
+
+                      return (
+                        <MapaMateriaCard
+                          key={node.id}
+                          materia={materia}
+                          node={node}
+                          isFocused={isFocused}
+                          relationRole={relationRole}
+                          relationInfo={relationInfo}
+                          isDimmed={isDimmed}
+                          isPanning={isPanning}
+                          showPorts={!relacionesFoco}
+                          hasInPort={portMaps.hasIn.has(node.id)}
+                          hasOutPort={portMaps.hasOut.has(node.id)}
+                          onClick={() => handleCardClick(node.id)}
+                          onMouseEnter={() => {
+                            if (!relacionesFoco) setHoveredId(node.id)
+                          }}
+                          onMouseLeave={() => {
+                            setHoveredId(prev => (prev === node.id ? null : prev))
+                          }}
                         />
-                      </g>
-                    )
-                  })}
-                </svg>
+                      )
+                    })}
+                  </div>
+
+                  {/* Capa SVG de flechas ortogonales (z-20 pointer-events-none) */}
+                  <svg
+                    width={layout.width}
+                    height={layout.height}
+                    className="absolute inset-0 z-20 pointer-events-none"
+                    aria-hidden="true"
+                  >
+                    <defs>
+                      <marker
+                        id={arrowAprobadaId}
+                        viewBox="0 0 10 10"
+                        refX="8"
+                        refY="5"
+                        markerWidth="6"
+                        markerHeight="6"
+                        orient="auto"
+                      >
+                        <path d="M 0 1 L 10 5 L 0 9 z" fill="#166534" />
+                      </marker>
+                      <marker
+                        id={arrowRegularId}
+                        viewBox="0 0 10 10"
+                        refX="8"
+                        refY="5"
+                        markerWidth="6"
+                        markerHeight="6"
+                        orient="auto"
+                      >
+                        <path d="M 0 1 L 10 5 L 0 9 z" fill="#0047ff" />
+                      </marker>
+                    </defs>
+
+                    {routedEdges.map(edge => {
+                      const isAprobada = edge.tipo === 'APROBADA'
+                      const stroke = isAprobada ? '#166534' : '#0047ff'
+                      const markerId = isAprobada ? arrowAprobadaId : arrowRegularId
+                      const isPreview = activeEdgesSource.isPreview
+
+                      return (
+                        <g key={edge.id} opacity={isPreview ? 0.65 : 1}>
+                          <circle cx={edge.startX} cy={edge.startY} r="3.5" fill={stroke} />
+                          <path
+                            d={edge.d}
+                            fill="none"
+                            stroke={stroke}
+                            strokeWidth={isPreview ? 2 : 2.5}
+                            strokeLinejoin="round"
+                            strokeDasharray={isAprobada ? undefined : '6 4'}
+                            markerEnd={`url(#${markerId})`}
+                          />
+                        </g>
+                      )
+                    })}
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Controles de zoom flotantes (fuera del scroll, esquina inferior derecha) */}
+          {/* Barra inferior dentro del lienzo: leyenda compacta (fullscreen) + zoom sin solapamiento */}
           <div
-            role="group"
-            aria-label="Controles de zoom del mapa"
-            className="absolute bottom-3 right-3 z-30 bg-white border-2 border-[#111111] shadow-fanzine-sm p-1 flex items-center gap-1"
+            className={`pointer-events-none absolute bottom-3 left-3 right-3 z-30 flex items-end gap-3 ${
+              fullscreen ? 'justify-end lg:justify-between' : 'justify-end'
+            }`}
           >
-            <button
-              type="button"
-              onClick={() => setZoom(z => clampZoom(z - ZOOM_STEP))}
-              disabled={zoom <= MIN_ZOOM}
-              aria-label="Alejar mapa"
-              title="Alejar"
-              className="min-w-[44px] min-h-[44px] sm:min-w-[34px] sm:min-h-[34px] flex items-center justify-center bg-[#f4f0e6] hover:bg-[#ccff00] disabled:bg-[#e4e4e7] disabled:text-[#71717a] disabled:border-[#71717a] disabled:cursor-not-allowed border border-[#111111] text-[#111111] cursor-pointer"
-            >
-              <ZoomOut className="w-4 h-4" aria-hidden="true" />
-            </button>
+            {fullscreen && (
+              <div className="hidden lg:flex pointer-events-auto bg-white border-2 border-[#111111] shadow-fanzine-sm px-2.5 py-1.5 items-center gap-2 font-mono text-[10px] font-bold flex-wrap">
+                <span className="px-1 bg-[#ccff00] text-[#111111] border border-[#111111]">✓ Aprobada</span>
+                <span className="px-1 bg-[#fef08a] text-[#111111] border border-[#111111]">✎ Regular</span>
+                <span className="px-1 bg-[#0047ff] text-white border border-[#111111]">⚡ Cursando</span>
+                <span className="px-1 bg-[#ff1464] text-[#111111] border border-[#111111]">★ Cursable</span>
+                <span className="px-1 bg-[#f4f4f5] text-[#111111] border border-[#71717a]">🔒 Bloqueada</span>
 
-            <span className="font-mono text-[11px] font-bold text-[#111111] px-1.5 min-w-[44px] text-center">
-              {Math.round(zoom * 100)}%
-            </span>
+                <span className="inline-flex items-center gap-1 text-[#166534]">
+                  <svg width="16" height="8" viewBox="0 0 16 8" aria-hidden="true">
+                    <line x1="0" y1="4" x2="16" y2="4" stroke="#166534" strokeWidth="3" />
+                  </svg>
+                  <span>Req. Aprobada</span>
+                </span>
 
-            <button
-              type="button"
-              onClick={() => setZoom(z => clampZoom(z + ZOOM_STEP))}
-              disabled={zoom >= MAX_ZOOM}
-              aria-label="Acercar mapa"
-              title="Acercar"
-              className="min-w-[44px] min-h-[44px] sm:min-w-[34px] sm:min-h-[34px] flex items-center justify-center bg-[#f4f0e6] hover:bg-[#ccff00] disabled:bg-[#e4e4e7] disabled:text-[#71717a] disabled:border-[#71717a] disabled:cursor-not-allowed border border-[#111111] text-[#111111] cursor-pointer"
-            >
-              <ZoomIn className="w-4 h-4" aria-hidden="true" />
-            </button>
+                <span className="inline-flex items-center gap-1 text-[#0047ff]">
+                  <svg width="16" height="8" viewBox="0 0 16 8" aria-hidden="true">
+                    <line x1="0" y1="4" x2="16" y2="4" stroke="#0047ff" strokeWidth="3" strokeDasharray="4 3" />
+                  </svg>
+                  <span>Req. Regular</span>
+                </span>
+              </div>
+            )}
 
-            <button
-              type="button"
-              onClick={handleFitZoom}
-              title="Ajustar mapa al ancho visible"
-              className="min-h-[44px] sm:min-h-[34px] inline-flex items-center gap-1 px-2 bg-white hover:bg-[#ccff00] border border-[#111111] font-mono text-[10px] font-bold uppercase text-[#111111] cursor-pointer"
+            <div
+              role="group"
+              aria-label="Controles de zoom del mapa"
+              className="pointer-events-auto shrink-0 bg-white border-2 border-[#111111] shadow-fanzine-sm p-1 flex items-center gap-1"
             >
-              <Expand className="w-3 h-3" aria-hidden="true" />
-              <span>Ajustar</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setZoom(z => clampZoom(z - ZOOM_STEP))}
+                disabled={zoom <= MIN_ZOOM}
+                aria-label="Alejar mapa"
+                title="Alejar"
+                className="min-w-[44px] min-h-[44px] sm:min-w-[34px] sm:min-h-[34px] flex items-center justify-center bg-[#f4f0e6] hover:bg-[#ccff00] disabled:bg-[#e4e4e7] disabled:text-[#71717a] disabled:border-[#71717a] disabled:cursor-not-allowed border border-[#111111] text-[#111111] cursor-pointer"
+              >
+                <ZoomOut className="w-4 h-4" aria-hidden="true" />
+              </button>
 
-            <button
-              type="button"
-              onClick={handleResetZoom}
-              title="Restablecer zoom al 100%"
-              aria-label="Restablecer zoom"
-              className="min-w-[44px] min-h-[44px] sm:min-w-[34px] sm:min-h-[34px] flex items-center justify-center bg-white hover:bg-[#ccff00] border border-[#111111] text-[#111111] cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
-            </button>
+              <span className="font-mono text-[11px] font-bold text-[#111111] px-1.5 min-w-[44px] text-center">
+                {Math.round(zoom * 100)}%
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setZoom(z => clampZoom(z + ZOOM_STEP))}
+                disabled={zoom >= MAX_ZOOM}
+                aria-label="Acercar mapa"
+                title="Acercar"
+                className="min-w-[44px] min-h-[44px] sm:min-w-[34px] sm:min-h-[34px] flex items-center justify-center bg-[#f4f0e6] hover:bg-[#ccff00] disabled:bg-[#e4e4e7] disabled:text-[#71717a] disabled:border-[#71717a] disabled:cursor-not-allowed border border-[#111111] text-[#111111] cursor-pointer"
+              >
+                <ZoomIn className="w-4 h-4" aria-hidden="true" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleFitZoom}
+                title="Ajustar mapa al ancho visible"
+                className="min-h-[44px] sm:min-h-[34px] inline-flex items-center gap-1 px-2 bg-white hover:bg-[#ccff00] border border-[#111111] font-mono text-[10px] font-bold uppercase text-[#111111] cursor-pointer"
+              >
+                <Expand className="w-3 h-3" aria-hidden="true" />
+                <span>Ajustar</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResetZoom}
+                title="Restablecer zoom al 100%"
+                aria-label="Restablecer zoom"
+                className="min-w-[44px] min-h-[44px] sm:min-w-[34px] sm:min-h-[34px] flex items-center justify-center bg-white hover:bg-[#ccff00] border border-[#111111] text-[#111111] cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                title={fullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+                aria-label={fullscreen ? 'Salir de pantalla completa' : 'Abrir en pantalla completa'}
+                className={`min-w-[44px] min-h-[44px] sm:min-w-[34px] sm:min-h-[34px] flex items-center justify-center border border-[#111111] cursor-pointer ${
+                  fullscreen
+                    ? 'bg-[#111111] text-[#ccff00] hover:bg-[#ff1464] hover:text-[#111111]'
+                    : 'bg-[#ccff00] text-[#111111] hover:bg-[#b8e600]'
+                }`}
+              >
+                {fullscreen ? (
+                  <Minimize2 className="w-3.5 h-3.5" aria-hidden="true" />
+                ) : (
+                  <Maximize2 className="w-3.5 h-3.5" aria-hidden="true" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ── LEYENDA INFERIOR SÓLIDA ── */}
-      <div className="bg-white border-2 border-[#111111] shadow-fanzine-sm px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono shrink-0">
-        <div className="flex flex-wrap items-center gap-2 font-bold">
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#ccff00] text-[#111111] border border-[#111111]">
-            ✓ Aprobada
-          </span>
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#fef08a] text-[#111111] border border-[#111111]">
-            ✎ Regular
-          </span>
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#0047ff] text-white border border-[#111111]">
-            <Zap className="w-3 h-3" aria-hidden="true" />
-            <span>Cursando</span>
-          </span>
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#ff1464] text-[#111111] border border-[#111111]">
-            ★ Cursable
-          </span>
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#f4f4f5] text-[#111111] border border-[#71717a]">
-            <Lock className="w-3 h-3" aria-hidden="true" />
-            <span>Bloqueada</span>
-          </span>
-        </div>
+      {/* ── LEYENDA INFERIOR EN MODO NORMAL ── */}
+      {!fullscreen && (
+        <div className="bg-white border-2 border-[#111111] shadow-fanzine-sm px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+          <div className="flex flex-wrap items-center gap-2 font-bold">
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#ccff00] text-[#111111] border border-[#111111]">
+              ✓ Aprobada
+            </span>
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#fef08a] text-[#111111] border border-[#111111]">
+              ✎ Regular
+            </span>
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#0047ff] text-white border border-[#111111]">
+              <Zap className="w-3 h-3" aria-hidden="true" />
+              <span>Cursando</span>
+            </span>
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#ff1464] text-[#111111] border border-[#111111]">
+              ★ Cursable
+            </span>
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#f4f4f5] text-[#111111] border border-[#71717a]">
+              <Lock className="w-3 h-3" aria-hidden="true" />
+              <span>Bloqueada</span>
+            </span>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-3 font-bold text-[#111111]">
-          <span className="inline-flex items-center gap-1.5">
-            <svg width="22" height="8" viewBox="0 0 22 8" aria-hidden="true">
-              <line x1="0" y1="4" x2="22" y2="4" stroke="#166534" strokeWidth="3" />
-            </svg>
-            <span className="text-[#166534]">Línea sólida: Req. Aprobada</span>
-          </span>
+          <div className="flex flex-wrap items-center gap-3 font-bold text-[#111111]">
+            <span className="inline-flex items-center gap-1.5">
+              <svg width="22" height="8" viewBox="0 0 22 8" aria-hidden="true">
+                <line x1="0" y1="4" x2="22" y2="4" stroke="#166534" strokeWidth="3" />
+              </svg>
+              <span className="text-[#166534]">Línea sólida: Req. Aprobada</span>
+            </span>
 
-          <span className="inline-flex items-center gap-1.5">
-            <svg width="22" height="8" viewBox="0 0 22 8" aria-hidden="true">
-              <line x1="0" y1="4" x2="22" y2="4" stroke="#0047ff" strokeWidth="3" strokeDasharray="5 3" />
-            </svg>
-            <span className="text-[#0047ff]">Línea discontinua: Req. Regular</span>
-          </span>
+            <span className="inline-flex items-center gap-1.5">
+              <svg width="22" height="8" viewBox="0 0 22 8" aria-hidden="true">
+                <line x1="0" y1="4" x2="22" y2="4" stroke="#0047ff" strokeWidth="3" strokeDasharray="5 3" />
+              </svg>
+              <span className="text-[#0047ff]">Línea discontinua: Req. Regular</span>
+            </span>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -799,6 +1085,7 @@ const MapaMateriaCard = memo(function MapaMateriaCard({
   relationRole,
   relationInfo,
   isDimmed,
+  isPanning,
   showPorts,
   hasInPort,
   hasOutPort,
@@ -812,7 +1099,7 @@ const MapaMateriaCard = memo(function MapaMateriaCard({
   if (isFocused) {
     containerClass = 'bg-[#fff0f5] border-3 border-[#ff1464] shadow-[4px_4px_0px_#111111] z-20'
     ribbon = (
-      <div className="px-1.5 py-0.5 bg-[#111111] text-[#ccff00] font-mono text-[10px] font-bold truncate">
+      <div className="px-1.5 py-0.5 bg-[#111111] text-[#ccff00] font-mono text-[11px] font-bold truncate">
         ★ Materia enfocada
       </div>
     )
@@ -823,7 +1110,7 @@ const MapaMateriaCard = memo(function MapaMateriaCard({
       : 'bg-[#eff6ff] border-3 border-[#0047ff] shadow-[3px_3px_0px_#0047ff]'
     ribbon = (
       <div
-        className={`px-1.5 py-0.5 border border-[#111111] font-mono text-[10px] font-bold flex items-center justify-between gap-1 ${
+        className={`px-1.5 py-0.5 border border-[#111111] font-mono text-[11px] font-bold flex items-center justify-between gap-1 ${
           isApr ? 'bg-[#ccff00] text-[#111111]' : 'bg-[#0047ff] text-white'
         }`}
       >
@@ -842,7 +1129,7 @@ const MapaMateriaCard = memo(function MapaMateriaCard({
       : 'bg-[#eff6ff] border-3 border-[#0047ff] shadow-[3px_3px_0px_#0047ff]'
     ribbon = (
       <div
-        className={`px-1.5 py-0.5 border border-[#111111] font-mono text-[10px] font-bold truncate ${
+        className={`px-1.5 py-0.5 border border-[#111111] font-mono text-[11px] font-bold truncate ${
           isApr ? 'bg-[#ccff00] text-[#111111]' : 'bg-[#0047ff] text-white'
         }`}
       >
@@ -887,7 +1174,9 @@ const MapaMateriaCard = memo(function MapaMateriaCard({
         width: `${node.w}px`,
         height: `${node.h}px`,
       }}
-      className={`absolute p-2 flex flex-col gap-1 text-left cursor-pointer transition-colors ${containerClass}`}
+      className={`absolute p-2.5 flex flex-col gap-1 text-left transition-colors ${
+        isPanning ? 'cursor-grabbing' : 'cursor-pointer'
+      } ${containerClass}`}
     >
       {/* Puertos laterales cuando no hay foco activo */}
       {showPorts && hasInPort && (
@@ -905,7 +1194,7 @@ const MapaMateriaCard = memo(function MapaMateriaCard({
 
       {/* Fila 1: Código + sello de estado */}
       <div className="flex items-center justify-between gap-1 w-full">
-        <span className="font-mono text-[10px] font-bold truncate text-[#52525b]">
+        <span className="font-mono text-[11px] font-bold truncate text-[#52525b]">
           {materia.codigo}
         </span>
         <EstadoMiniBadge materia={materia} />
@@ -913,7 +1202,7 @@ const MapaMateriaCard = memo(function MapaMateriaCard({
 
       {/* Fila 2: Nombre de la materia */}
       <div
-        className={`font-sans text-xs font-bold leading-[1.2] line-clamp-2 ${
+        className={`font-sans text-[13px] font-bold leading-[1.22] line-clamp-2 ${
           isDimmed ? 'text-[#52525b]' : 'text-[#111111]'
         }`}
       >
@@ -924,7 +1213,7 @@ const MapaMateriaCard = memo(function MapaMateriaCard({
       {ribbon}
 
       {/* Fila 4: Horas semanales y cuatrimestre */}
-      <div className="mt-auto font-mono text-[10px] font-bold text-[#52525b] flex items-center justify-between">
+      <div className="mt-auto font-mono text-[11px] font-bold text-[#52525b] flex items-center justify-between">
         <span>{materia.horas_semanales || 4} hs/sem</span>
         <span>{materia.cuatrimestre ? `${materia.cuatrimestre}ºC` : 'Anual'}</span>
       </div>
