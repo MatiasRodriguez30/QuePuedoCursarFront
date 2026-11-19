@@ -1,9 +1,9 @@
 import { checkCursadaRequirements, esElectiva } from '../lib/businessLogic'
 
-export const CARD_W = 236
-export const CARD_H = 118
-export const COL_GAP = 80
-export const ROW_GAP = 20
+export const CARD_W = 252
+export const CARD_H = 128
+export const COL_GAP = 84
+export const ROW_GAP = 22
 export const PAD_X = 28
 export const PAD_TOP = 64
 export const PAD_BOTTOM = 28
