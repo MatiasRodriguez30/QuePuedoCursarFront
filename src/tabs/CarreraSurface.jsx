@@ -1,12 +1,15 @@
-import { memo, useDeferredValue, useMemo, useState } from 'react'
+import { lazy, memo, Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import {
+  LayoutGrid,
   Lock,
+  Network,
   RotateCcw,
   Search,
   Undo2,
   Users,
   X
 } from 'lucide-react'
+import TitoAvatar from '../components/TitoAvatar'
 import { apiRequest } from '../lib/api'
 import { formatearCursandoTexto } from '../lib/logrosLogic'
 import {
@@ -14,6 +17,8 @@ import {
   computeImpactoCascada,
   esElectiva
 } from '../lib/businessLogic'
+
+const MapaCorrelativas = lazy(() => import('../components/MapaCorrelativas'))
 
 const FILTROS = [
   { id: 'TODAS', label: 'Todas' },
@@ -38,6 +43,8 @@ export default function CarreraSurface({
   const [query, setQuery] = useState('')
   const queryDiferida = useDeferredValue(query)
   const [filtroActivo, setFiltroActivo] = useState('TODAS')
+  const [vista, setVista] = useState('grilla')
+  const [detalleMapaAbierto, setDetalleMapaAbierto] = useState(false)
   const [anioMobile, setAnioMobile] = useState(1)
   const [materiaActivaId, setMateriaActivaId] = useState(selectedMateriaId || null)
   const [prevSelectedMateriaId, setPrevSelectedMateriaId] = useState(selectedMateriaId)
@@ -49,9 +56,27 @@ export default function CarreraSurface({
     setMateriaActivaId(selectedMateriaId)
   }
 
+  // Cerrar el modal de detalle en vista Mapa con Escape
+  useEffect(() => {
+    if (!detalleMapaAbierto) return
+    function handleEsc(e) {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setDetalleMapaAbierto(false)
+      }
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [detalleMapaAbierto])
+
   function handleSelectMateria(id) {
     setMateriaActivaId(id)
     onSelectMateria?.(id)
+  }
+
+  function handleCambiarVista(nuevaVista) {
+    setVista(nuevaVista)
+    setDetalleMapaAbierto(false)
   }
 
   // Materia actualmente inspeccionada
@@ -189,29 +214,65 @@ export default function CarreraSurface({
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto">
-      {/* ── TOOLBAR DE MI CARRERA: FILTROS POR CHIP, BUSCADOR Y REINICIAR ──────── */}
-      <div className="bg-white border-3 border-[#111111] shadow-fanzine-sm p-3 sm:p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-        {/* Chips de filtro (atenúan, no ocultan) */}
-        <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs select-none">
-          {FILTROS.map(f => (
+      {/* ── TOOLBAR DE MI CARRERA: SELECTOR DE VISTA, FILTROS, BUSCADOR Y REINICIAR ── */}
+      <div className="bg-white border-3 border-[#111111] shadow-fanzine-sm p-3 sm:p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+          {/* Selector de vista Grilla | Mapa */}
+          <div
+            role="group"
+            aria-label="Modo de vista"
+            className="inline-flex border-2 border-[#111111] bg-[#f4f0e6] p-0.5 gap-0.5 font-mono text-xs select-none shrink-0"
+          >
             <button
-              key={f.id}
               type="button"
-              onClick={() => setFiltroActivo(f.id)}
-              className={`px-2.5 py-1 font-bold uppercase border-2 border-[#111111] transition-all cursor-pointer ${
-                filtroActivo === f.id
-                  ? 'bg-[#111111] text-[#ccff00] shadow-[2px_2px_0px_#ff1464] translate-y-0.5'
-                  : 'bg-[#f4f0e6] text-[#111111] hover:bg-white'
+              aria-pressed={vista === 'grilla'}
+              onClick={() => handleCambiarVista('grilla')}
+              className={`min-h-[44px] sm:min-h-[34px] inline-flex items-center gap-1.5 px-2.5 py-1 font-bold uppercase transition-colors cursor-pointer ${
+                vista === 'grilla'
+                  ? 'bg-[#111111] text-[#ccff00] shadow-[2px_2px_0px_#ff1464]'
+                  : 'bg-transparent text-[#111111] hover:bg-white'
               }`}
             >
-              {f.label}
+              <LayoutGrid className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Grilla</span>
             </button>
-          ))}
+            <button
+              type="button"
+              aria-pressed={vista === 'mapa'}
+              onClick={() => handleCambiarVista('mapa')}
+              className={`min-h-[44px] sm:min-h-[34px] inline-flex items-center gap-1.5 px-2.5 py-1 font-bold uppercase transition-colors cursor-pointer ${
+                vista === 'mapa'
+                  ? 'bg-[#111111] text-[#ccff00] shadow-[2px_2px_0px_#ff1464]'
+                  : 'bg-transparent text-[#111111] hover:bg-white'
+              }`}
+            >
+              <Network className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Mapa</span>
+            </button>
+          </div>
+
+          {/* Chips de filtro (atenúan, no ocultan) */}
+          <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs select-none">
+            {FILTROS.map(f => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setFiltroActivo(f.id)}
+                className={`px-2.5 py-1 font-bold uppercase border-2 border-[#111111] transition-all cursor-pointer ${
+                  filtroActivo === f.id
+                    ? 'bg-[#111111] text-[#ccff00] shadow-[2px_2px_0px_#ff1464] translate-y-0.5'
+                    : 'bg-[#f4f0e6] text-[#111111] hover:bg-white'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Buscador y opciones secundarias */}
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <div className="relative flex-1 md:w-60">
+        <div className="flex items-center gap-2 w-full lg:w-auto">
+          <div className="relative flex-1 lg:w-60">
             <Search className="w-3.5 h-3.5 text-[#71717a] absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden="true" />
             <input
               type="text"
@@ -233,6 +294,67 @@ export default function CarreraSurface({
           </button>
         </div>
       </div>
+
+      {vista === 'mapa' ? (
+        <>
+          <Suspense
+            fallback={
+              <div className="bg-[#f4f0e6] border-3 border-[#111111] shadow-fanzine-md py-16 flex flex-col items-center justify-center gap-2 text-xs font-mono font-bold text-[#52525b]">
+                <TitoAvatar variant="lupa" className="w-12 h-12" />
+                <span>Dibujando el mapa de correlativas...</span>
+              </div>
+            }
+          >
+            <MapaCorrelativas
+              ctx={ctx}
+              filtroActivo={filtroActivo}
+              query={queryDiferida}
+              focusedMateriaId={materiaActivaId}
+              onFocusMateria={id => {
+                handleSelectMateria(id)
+                if (!id) setDetalleMapaAbierto(false)
+              }}
+              onOpenDetalle={id => {
+                handleSelectMateria(id)
+                setDetalleMapaAbierto(true)
+              }}
+              onResetFiltros={() => {
+                setFiltroActivo('TODAS')
+                setQuery('')
+              }}
+              detalleAbierto={detalleMapaAbierto}
+            />
+          </Suspense>
+
+          {/* Modal sólido accesible para editar el estado de una materia desde el mapa */}
+          {detalleMapaAbierto && materiaActiva && (
+            <div
+              className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-3 sm:p-4"
+              onClick={e => {
+                if (e.target === e.currentTarget) setDetalleMapaAbierto(false)
+              }}
+            >
+              <div
+                className="bg-white border-3 border-[#111111] shadow-fanzine-lg p-4 max-h-[85dvh] overflow-y-auto w-full max-w-md"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Detalle de ${materiaActiva.nombre}`}
+              >
+                <HojaDeDetalleContenido
+                  materia={materiaActiva}
+                  ctx={ctx}
+                  onClose={() => setDetalleMapaAbierto(false)}
+                  onChangeEstado={handleChangeEstado}
+                  ultimoCambio={ultimoCambio}
+                  onUndo={handleUndo}
+                  cursandoPorMateria={cursandoPorMateria}
+                />
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
 
       {/* ── LEYENDA TÁCTIL DE CORRELATIVAS CUANDO HAY MATERIA ACTIVA ───────────── */}
       {materiaActiva && (
@@ -334,6 +456,10 @@ export default function CarreraSurface({
               ultimoCambio={ultimoCambio}
               onUndo={handleUndo}
               cursandoPorMateria={cursandoPorMateria}
+              onVerEnMapa={() => {
+                handleCambiarVista('mapa')
+                handleSelectMateria(materiaActiva.id)
+              }}
             />
           </aside>
         )}
@@ -356,9 +482,15 @@ export default function CarreraSurface({
               ultimoCambio={ultimoCambio}
               onUndo={handleUndo}
               cursandoPorMateria={cursandoPorMateria}
+              onVerEnMapa={() => {
+                handleCambiarVista('mapa')
+                handleSelectMateria(materiaActiva.id)
+              }}
             />
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   )
@@ -463,6 +595,7 @@ function HojaDeDetalleContenido({
   ultimoCambio,
   onUndo,
   cursandoPorMateria = {},
+  onVerEnMapa = null,
 }) {
   const estado = ctx.estadosMap[materia.id] || 'NO_CURSADA'
   const reqCheck = checkCursadaRequirements(materia.id, ctx)
@@ -530,6 +663,18 @@ function HojaDeDetalleContenido({
           className={`w-full py-2.5 px-4 font-mono font-bold text-xs uppercase border-2 border-[#111111] shadow-[3px_3px_0px_#111111] hover:translate-x-0.5 hover:translate-y-0.5 active:shadow-[1px_1px_0px_#111111] cursor-pointer transition-all ${accionPrincipal.color}`}
         >
           ★ {accionPrincipal.label}
+        </button>
+      )}
+
+      {/* Acceso directo al mapa de correlativas desde vista Grilla */}
+      {onVerEnMapa && (
+        <button
+          type="button"
+          onClick={onVerEnMapa}
+          className="w-full min-h-[40px] py-2 px-3 bg-[#eff6ff] hover:bg-[#0047ff] text-[#111111] hover:text-white border-2 border-[#111111] shadow-[2px_2px_0px_#111111] font-mono font-bold text-xs uppercase inline-flex items-center justify-center gap-2 cursor-pointer transition-colors"
+        >
+          <Network className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+          <span>Ver en mapa de correlativas</span>
         </button>
       )}
 
